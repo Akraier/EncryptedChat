@@ -1,1 +1,1 @@
-# EncryptedChat
+# EncryptedChat super figa

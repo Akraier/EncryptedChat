@@ -3,6 +3,16 @@ import sys
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
 
+def login(username):
+    file_registrati = open('UtentiRegistrati.txt', 'r')
+    riga_file = file_registrati.readline()
+    while riga_file != None:
+        if riga_file.split(" ")[0] != username:
+            riga_file = file_registrati.readline()
+            continue
+        #TODO! generare stringa random da mandare al client e valutare la risposta da parte del client
+
+
 if __name__ == '__main__':
 
     key = RSA.generate(2048)            #generazioni chiave privata per il server
@@ -15,6 +25,9 @@ if __name__ == '__main__':
     f = open('servePubKey.pem', 'wb')
     f.write(public_key)
     f.close()
+
+    file_registrati = open('UtentiRegistrati.txt', 'w')
+    file_registrati.close()
 
     host = sk.gethostname()
     port = 12345
@@ -29,6 +42,8 @@ if __name__ == '__main__':
             if not data:
                 conn.close()
             print(data.decode("utf-8"))
+            if data.decode("utf-8")[0] == '2':
+                login(data.decode("utf-8")[1:len(data.decode("utf-8"))-1])
             conn.sendall(bytes('Thank you for connecting', 'utf-8'))
         except:
             conn.close()

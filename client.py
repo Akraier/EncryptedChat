@@ -44,11 +44,12 @@ if __name__ == '__main__':
     print(ricevuto)
     #socket.close()      #da togliere, farei una funzione logout per eliminare l'indirizzo ip
                         #dal server prima di chiudere
-    if login(username) == '-1':
-        registrati()
+    login(username)
+   # if login(username) == '-1':
+   #     registrati()
 
 
-def conn_to_server():
+''' def conn_to_server():
    try:
         socket = sk.socket(sk.AF_INET, sk.SOCK_STREAM) #creazione socket client
         socket.connect((indirizzo_server,porta_server)) #connessione al server
@@ -61,5 +62,5 @@ def conn_to_server():
 
    except sk.error as errore:
         print("Connessione non riuscita"+errore)
-
+'''
 

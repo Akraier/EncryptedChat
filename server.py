@@ -13,6 +13,8 @@ def login(username):
         #TODO! generare stringa random da mandare al client e valutare la risposta da parte del client
 
 
+
+
 if __name__ == '__main__':
 
     key = RSA.generate(2048)            #generazioni chiave privata per il server
@@ -22,7 +24,7 @@ if __name__ == '__main__':
     f.close()
 
     public_key = key.publickey().export_key()  #generazione chiave pubblica
-    f = open('servePubKey.pem', 'wb')
+    f = open('serverPubKey.pem', 'wb')
     f.write(public_key)
     f.close()
 
@@ -45,6 +47,7 @@ if __name__ == '__main__':
             if data.decode("utf-8")[0] == '2':
                 login(data.decode("utf-8")[1:len(data.decode("utf-8"))-1])
             conn.sendall(bytes('Thank you for connecting', 'utf-8'))
+
         except:
             conn.close()
             print("Connection closed by", addr)

@@ -5,7 +5,7 @@ from Crypto.Cipher import PKCS1_OAEP
 def login(username):
     esito = -1
     print("sono nella login")
-    socket.sendall(bytes(username, 'utf-8'))
+    socket.sendall(bytes('2'+username, 'utf-8'))
     ricevuto = socket.recv(1024)
     if ricevuto == '-1':            #in caso di utente non registrato il server risponde con codice -1?
         return esito
@@ -44,6 +44,7 @@ if __name__ == '__main__':
     print(ricevuto)
     #socket.close()      #da togliere, farei una funzione logout per eliminare l'indirizzo ip
                         #dal server prima di chiudere
-    login(username)
+    if login(username) == '-1':
+        registrati()
 
 

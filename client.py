@@ -1,5 +1,5 @@
 import socket as sk
-from crypto.PublicKey import RSA
+from Crypto.PublicKey import RSA
 
 if __name__ == '__main__':
     host = sk.gethostname()

@@ -48,3 +48,18 @@ if __name__ == '__main__':
         registrati()
 
 
+def conn_to_server():
+   try:
+        socket = sk.socket(sk.AF_INET, sk.SOCK_STREAM) #creazione socket client
+        socket.connect((indirizzo_server,porta_server)) #connessione al server
+        print("Connessione al server effettuata")
+
+        #creazione username e generazione key public e key private
+        username = input("Inserire username:")
+        socket.send(username, 'utf-8')
+
+
+   except sk.error as errore:
+        print("Connessione non riuscita"+errore)
+
+

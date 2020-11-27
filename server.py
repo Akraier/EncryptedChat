@@ -18,7 +18,7 @@ def login(username):
     #print("RIGA_FILE: ", riga_file)
     #print(" ",riga_file.split(" ")[0])
 
-    while riga_file != '':
+    while riga_file != '':                                 #scorro il file per vedere se l'username è registrato
         print("RIGA_FILE: ", riga_file)
         print("riga file split: ", riga_file.split(" ")[0])
         print("USERNAME: ", username)

@@ -5,8 +5,9 @@ from Crypto.Cipher import PKCS1_OAEP
 def login(username):
     esito = -1
     print("sono nella login")
-    socket.sendall(bytes(username, 'utf-8'))
+    socket.sendall(bytes('2'+username, 'utf-8'))
     ricevuto = socket.recv(1024)
+    print('RICEVUTO: ', ricevuto)
     if ricevuto == '-1':            #in caso di utente non registrato il server risponde con codice -1?
         return esito
 
@@ -30,6 +31,41 @@ def login(username):
         return esito
 
 
+def signup(username):
+    #avvio comunicazione con server
+    socket.sendall(bytes('1' + username, 'utf-8'))
+
+    key = RSA.generate(2048)  # client genera la chiave privata
+    private_key = key.export_key()
+    f = open(username + '.pem', 'wb')  # crea un file per salvarla
+    f.write(private_key)
+    f.close()
+
+    public_key = key.publickey().export_key()  # generazione chiave pubblica
+    # salvataggio chiave pubblica lato client ?
+
+    # spedisco al server la mia chiave pubblica
+        #socket.send(public_key.encode())
+    socket.sendall(bytes(public_key, 'utf-8'))
+
+    # aspetto stringa generata casualmente
+    stringa = socket.recv(4096)
+
+    # cifro con chiave privata del client
+    cipher_rsa = PKCS1_OAEP.new(private_key)
+    stringa_cifrata = cipher_rsa.decrypt(stringa)
+
+    # invio la stringa cifrata al server
+    socket.sendall(bytes(stringa_cifrata, 'utf-8'))
+
+    # aspetto l'ok
+    esito = socket.recv(1024)
+
+    if esito == 0:
+        print("Registrazione avvenuta con successo")
+        return
+    else:
+        print("Si è verificato un errore")
 
 if __name__ == '__main__':
 
@@ -45,5 +81,22 @@ if __name__ == '__main__':
     #socket.close()      #da togliere, farei una funzione logout per eliminare l'indirizzo ip
                         #dal server prima di chiudere
     login(username)
+   # if login(username) == '-1':
+   #     registrati()
 
+
+''' def conn_to_server():
+   try:
+        socket = sk.socket(sk.AF_INET, sk.SOCK_STREAM) #creazione socket client
+        socket.connect((indirizzo_server,porta_server)) #connessione al server
+        print("Connessione al server effettuata")
+
+        #creazione username e generazione key public e key private
+        username = input("Inserire username:")
+        socket.send(username, 'utf-8')
+
+
+   except sk.error as errore:
+        print("Connessione non riuscita"+errore)
+'''
 

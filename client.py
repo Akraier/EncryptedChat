@@ -31,6 +31,9 @@ def login(username):
 
 
 def signup(username):
+    #avvio comunicazione con server
+    socket.sendall(bytes('1' + username, 'utf-8'))
+
     key = RSA.generate(2048)  # client genera la chiave privata
     private_key = key.export_key()
     f = open(username + '.pem', 'wb')  # crea un file per salvarla
@@ -41,7 +44,8 @@ def signup(username):
     # salvataggio chiave pubblica lato client ?
 
     # spedisco al server la mia chiave pubblica
-    socket.send(public_key.encode())
+        #socket.send(public_key.encode())
+    socket.sendall(bytes(public_key, 'utf-8'))
 
     # aspetto stringa generata casualmente
     stringa = socket.recv(4096)
@@ -51,7 +55,7 @@ def signup(username):
     stringa_cifrata = cipher_rsa.decrypt(stringa)
 
     # invio la stringa cifrata al server
-    socket.send(stringa_cifrata.encode())
+    socket.sendall(bytes(stringa_cifrata, 'utf-8'))
 
     # aspetto l'ok
     esito = socket.recv(1024)

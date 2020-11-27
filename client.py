@@ -7,6 +7,7 @@ def login(username):
     print("sono nella login")
     socket.sendall(bytes('2'+username, 'utf-8'))
     ricevuto = socket.recv(1024)
+    print('RICEVUTO: ', ricevuto)
     if ricevuto == '-1':            #in caso di utente non registrato il server risponde con codice -1?
         return esito
 

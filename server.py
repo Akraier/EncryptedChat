@@ -5,14 +5,49 @@ import string
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
 
+def get_random_string(length):
+    # Random string with the combination of lower and upper case
+    letters = string.ascii_letters
+    result_str = ''.join(random.choice(letters) for i in range(length))
+    return result_str
+
 def login(username):
-    file_registrati = open('UtentiRegistrati.txt', 'r')
+    print("sono nella login\n")
+    file_registrati = open('./UtentiRegistrati.txt', 'r')
     riga_file = file_registrati.readline()
-    while riga_file != None:
+    #print("RIGA_FILE: ", riga_file)
+    #print(" ",riga_file.split(" ")[0])
+
+    while riga_file != '':
+        print("RIGA_FILE: ", riga_file)
+        print("riga file split: ", riga_file.split(" ")[0])
+        print("USERNAME: ", username)
         if riga_file.split(" ")[0] != username:
+            print("00000000000000000")
             riga_file = file_registrati.readline()
             continue
-        #TODO! generare stringa random da mandare al client e valutare la risposta da parte del client
+        random_string = get_random_string(16)               #genero stringa random per autenticazione del client
+        print("stringa random: ", random_string)
+        PubKeyClient = riga_file.split(" ")[1]              #prendo la chiave pubblica del client dal file per cifrare la stringa
+        print('chiave pubblica: ', PubKeyClient)
+        cipher_rsa = PKCS1_OAEP.new(PubKeyClient)
+        message = cipher_rsa.encrypt(random_string)         # cifro con chiave pubblica del client e mando
+        conn.sendall(bytes(message, 'utf-8'))
+        break
+
+    print("DOPO IL WHILE\n")
+    if riga_file == '' :
+        print("NON TROVATO!\n")
+        conn.sendall(bytes('-1', 'utf-8'))              #caso di utente non registrato, restituisco errore
+        return
+
+    ricevuto = conn.recv(1024)
+    if ricevuto == random_string:                       #se sono uguali autenticazione andata a buon fine, invio 1
+        conn.sendall(bytes('1', 'utf-8'))
+    else:                                               #altrimenti errore di autenticazione (-1)
+        conn.sendall(bytes('-1', 'utf-8'))
+
+
 
 def get_random_string(length):
     letters = string.ascii_letters
@@ -57,8 +92,8 @@ if __name__ == '__main__':
     f.write(public_key)
     f.close()
 
-    file_registrati = open('UtentiRegistrati.txt', 'w')
-    file_registrati.close()
+    #file_registrati = open('UtentiRegistrati.txt', 'w')
+    #file_registrati.close()
 
     host = sk.gethostname()
     port = 12345
@@ -76,7 +111,7 @@ if __name__ == '__main__':
             if data.decode("utf-8")[0] == '1':
                 signup(data.decode("utf-8")[1:len(data.decode("utf-8"))-1])
             if data.decode("utf-8")[0] == '2':
-                login(data.decode("utf-8")[1:len(data.decode("utf-8"))-1])
+                login(data.decode("utf-8")[1:len(data.decode("utf-8"))])
 
             conn.sendall(bytes('Thank you for connecting', 'utf-8'))
 

@@ -22,14 +22,14 @@ def get_random_string(length):
 
 def signup(username):
     #riceve chiave pubblica
-    key_public_client = socket.recv(2048)
+    key_public_client = conn.recv(2048)
 
     #genera stringa casuale e la invia
     stringa_casuale = get_random_string(512) #512 lettere ovvero 4096 bit (?)
-    socket.sendall(bytes(stringa_casuale, 'utf-8'))
+    conn.sendall(bytes(stringa_casuale, 'utf-8'))
 
     #riceve stringa cifrata con key private del client
-    stringa_cifrata = socket.recv(4096)
+    stringa_cifrata = conn.recv(4096)
 
     cipher_rsa = PKCS1_OAEP.new(key_public_client)
     stringa_decifrata = cipher_rsa.decrypt(stringa_cifrata)

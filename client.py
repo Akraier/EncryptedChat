@@ -33,6 +33,7 @@ def login(username):
 
 
 def signup(username):
+    print('SONO NELLA SIGNUP')
     #avvio comunicazione con server
     socket.sendall(bytes('1' + username, 'utf-8'))
 
@@ -81,9 +82,10 @@ if __name__ == '__main__':
     print(ricevuto.decode('utf-8'))
     #socket.close()      #da togliere, farei una funzione logout per eliminare l'indirizzo ip
                         #dal server prima di chiudere
-    login(username)
-   # if login(username) == '-1':
-   #     registrati()
+    #login(username)
+
+    if login(username) == -1:
+        signup(username)
 
 
 ''' def conn_to_server():

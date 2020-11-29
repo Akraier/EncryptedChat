@@ -62,28 +62,52 @@ def get_random_string(length):
     return result_str
 
 def signup(username):
+    print("Sono nella signup")
     #riceve chiave pubblica
     key_public_client = conn.recv(2048)
+    key_public_client.decode('utf-8')
+    #key_public_client = RSA.importKey(conn.recv(2048), passphrase=None)
+    #key_public_client.decode('utf-8')
+
+    print(key_public_client)
+    #print(key_public_client.decode('utf-8'))
+    print("ricevuta chiave pubblica")
 
     #genera stringa casuale e la invia
-    stringa_casuale = get_random_string(512) #512 lettere ovvero 4096 bit (?)
+    stringa_casuale = "aaaaaaaaaaaaaaaa"
+    print("Ecco la stringa generata: "+stringa_casuale)
     conn.sendall(bytes(stringa_casuale, 'utf-8'))
 
-    #riceve stringa cifrata con key private del client
-    stringa_cifrata = conn.recv(4096)
+    print("Stringa inviata")
+    #riceve stringa decifrata con key private del client
+    stringa_decifrata = conn.recv(16)
+    stringa_decifrata = stringa_decifrata.decode('utf-8')
+
+    print("Stringa ricevuta")
 
     cipher_rsa = PKCS1_OAEP.new(key_public_client)
-    stringa_decifrata = cipher_rsa.decrypt(stringa_cifrata)
+   # stringa = cipher_rsa.encrypt(stringa_decifrata)
 
+
+    print("Stringa decriptata dal client: "+stringa_decifrata)
+    print("Stringa generata inizialmente: "+stringa_casuale)
     if stringa_decifrata == stringa_casuale:
+        print("Stringhe uguali")
         #memorizzo username e chiave pubblica del nuovo utente
         f = open('UtentiRegistrati.txt', 'w')
-        f.write(username+' '+key_public_client)
+        f.write(username+' '+key_public_client.decode('utf-8'))
         f.close()
 
-        socket.sendall(bytes('0', 'utf-8'))
+        f = open('UtentiRegistrati.txt', 'r')
+        riga_letta = f.read()
+        print("Credenziali registrate: "+riga_letta)
+        f.close()
+
+        conn.sendall(bytes('0', 'utf-8'))
+        print("Comunicazione al server effettuata")
     else:
-        socket.sendall(bytes('1', 'utf-8'))
+        conn.sendall(bytes('1', 'utf-8'))
+        print("Brutta notizia al server inviata")
 
 if __name__ == '__main__':
 

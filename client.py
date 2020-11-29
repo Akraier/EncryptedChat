@@ -7,11 +7,12 @@ def login(username):
     print("sono nella login")
     socket.sendall(bytes('2'+username, 'utf-8'))
     ricevuto = socket.recv(1024)
-    print('RICEVUTO: ', ricevuto)
-    if ricevuto == '-1':            #in caso di utente non registrato il server risponde con codice -1?
+    print('RICEVUTO: ', ricevuto.decode('utf-8'))
+    if ricevuto.decode('utf-8') == '-1':            #in caso di utente non registrato il server risponde con codice -1?
+        print('Username non registrato.')
         return esito
 
-    f = open(username+'.pem', 'r')      #recupero la mia chiave privata
+    f = open(username+'.pem', 'r')          #recupero la mia chiave privata
     private_key = RSA.import_key(f.read())
     f.close()
 
@@ -25,13 +26,14 @@ def login(username):
     socket.sendall(bytes(message, 'utf-8'))
 
     ricevuto = socket.recv(1024)             #se l'autenticazione è andata a buon fine il server me lo segnala
-    if ricevuto == '1':                      #inviando 1 (da vedere se vogliamo cifrare anche questo), altrimenti
+    if ricevuto.decode('utf-8') == '1':      #inviando 1 (da vedere se vogliamo cifrare anche questo), altrimenti
         return ricevuto                      #qualsiasi cosa mi invia capisco che c'è stato un errore e ritorno errore(-1)
     else:
         return esito
 
 
 def signup(username):
+    print('SONO NELLA SIGNUP')
     #avvio comunicazione con server
     socket.sendall(bytes('1' + username, 'utf-8'))
 
@@ -77,12 +79,13 @@ if __name__ == '__main__':
     socket.connect((host, port))
     socket.sendall(bytes('Ciao bella!', 'utf-8'))
     ricevuto = socket.recv(1024)
-    print(ricevuto)
+    print(ricevuto.decode('utf-8'))
     #socket.close()      #da togliere, farei una funzione logout per eliminare l'indirizzo ip
                         #dal server prima di chiudere
-    login(username)
-   # if login(username) == '-1':
-   #     registrati()
+    #login(username)
+
+    if login(username) == -1:
+        signup(username)
 
 
 ''' def conn_to_server():

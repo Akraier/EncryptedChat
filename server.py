@@ -11,19 +11,23 @@ def get_random_string(length):
     result_str = ''.join(random.choice(letters) for i in range(length))
     return result_str
 
+def decifratura(messaggio):
+    f = open('serverPrivKey.pem', 'r')  # recupero chiave privata server
+    key = RSA.import_key(f.read())
+    f.close()
+    cipher_rsa = PKCS1_OAEP.new(key)
+    messaggio = cipher_rsa.decrypt(messaggio)
+    return messaggio
+
 def login(username):
     print("sono nella login\n")
     file_registrati = open('./UtentiRegistrati.txt', 'r')
     riga_file = file_registrati.readline()
-    #print("RIGA_FILE: ", riga_file)
-    #print(" ",riga_file.split(" ")[0])
 
-    while riga_file != '':
-        print("RIGA_FILE: ", riga_file)
+    while riga_file != '':                                 #scorro il file per vedere se l'username è registrato
         print("riga file split: ", riga_file.split(" ")[0])
         print("USERNAME: ", username)
         if riga_file.split(" ")[0] != username:
-            print("00000000000000000")
             riga_file = file_registrati.readline()
             continue
         random_string = get_random_string(16)               #genero stringa random per autenticazione del client
@@ -32,17 +36,19 @@ def login(username):
         print('chiave pubblica: ', PubKeyClient)
         cipher_rsa = PKCS1_OAEP.new(PubKeyClient)
         message = cipher_rsa.encrypt(random_string)         # cifro con chiave pubblica del client e mando
+        print('stringa random cifrata: ', message)
         conn.sendall(bytes(message, 'utf-8'))
         break
 
-    print("DOPO IL WHILE\n")
-    if riga_file == '' :
+    if riga_file == '':
         print("NON TROVATO!\n")
         conn.sendall(bytes('-1', 'utf-8'))              #caso di utente non registrato, restituisco errore
         return
 
-    ricevuto = conn.recv(1024)
-    if ricevuto == random_string:                       #se sono uguali autenticazione andata a buon fine, invio 1
+    ricevuto = conn.recv(1024)                            # ricevo stringa random cifrata dal client
+    message = decifratura(ricevuto.decode('utf-8'))
+
+    if message == random_string:                        #se sono uguali autenticazione andata a buon fine, invio 1
         conn.sendall(bytes('1', 'utf-8'))
     else:                                               #altrimenti errore di autenticazione (-1)
         conn.sendall(bytes('-1', 'utf-8'))

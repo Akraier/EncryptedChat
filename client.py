@@ -1,18 +1,18 @@
 import socket as sk
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
-
+from p2pnetwork.node import Node
+import time
 def login(username):
     esito = -1
     print("sono nella login")
     socket.sendall(bytes('2'+username, 'utf-8'))
     ricevuto = socket.recv(1024)
-    print('RICEVUTO: ', ricevuto.decode('utf-8'))
-    if ricevuto.decode('utf-8') == '-1':            #in caso di utente non registrato il server risponde con codice -1?
-        print('Username non registrato.')
+    print('RICEVUTO: ', ricevuto)
+    if ricevuto == '-1':            #in caso di utente non registrato il server risponde con codice -1?
         return esito
 
-    f = open(username+'.pem', 'r')          #recupero la mia chiave privata
+    f = open(username+'.pem', 'r')      #recupero la mia chiave privata
     private_key = RSA.import_key(f.read())
     f.close()
 
@@ -26,14 +26,36 @@ def login(username):
     socket.sendall(bytes(message, 'utf-8'))
 
     ricevuto = socket.recv(1024)             #se l'autenticazione è andata a buon fine il server me lo segnala
-    if ricevuto.decode('utf-8') == '1':      #inviando 1 (da vedere se vogliamo cifrare anche questo), altrimenti
+    if ricevuto == '1':                      #inviando 1 (da vedere se vogliamo cifrare anche questo), altrimenti
         return ricevuto                      #qualsiasi cosa mi invia capisco che c'è stato un errore e ritorno errore(-1)
     else:
         return esito
+def connect_to_contact(contact, socket):
+    try:
+        to_send = 'connect' + contact
+        socket.sendall(bytes(to_send, 'utf-8'))
+        rcv = socket.recv(1024)
+        received = rcv.decode("utf-8")
 
+
+    except:
+        print('Errore di comunicazione con-to-cont')
+    if  received != 'offline':
+        return received   #restituisce la lista [ ip,porta]
+    else:
+        print('Utente ' + contact + 'offline.\n')
+        return 0
+
+
+def node_callback(event, node, connected_node, data):
+    try:
+        if event != 'node_request_to_stop': # node_request_to_stop does not have any connected_node, while it is the main_node that is stopping!
+            print('Event: {} from main node {}: connected node {}: {}'.format(event, node.id, connected_node.id, data))
+
+    except Exception as e:
+        print(e)
 
 def signup(username):
-    print('SONO NELLA SIGNUP')
     #avvio comunicazione con server
     socket.sendall(bytes('1' + username, 'utf-8'))
 
@@ -79,13 +101,32 @@ if __name__ == '__main__':
     socket.connect((host, port))
     socket.sendall(bytes('Ciao bella!', 'utf-8'))
     ricevuto = socket.recv(1024)
-    print(ricevuto.decode('utf-8'))
+    print(ricevuto)
     #socket.close()      #da togliere, farei una funzione logout per eliminare l'indirizzo ip
                         #dal server prima di chiudere
-    #login(username)
-
-    if login(username) == -1:
-        signup(username)
+    if login(username) == 1:
+        node = Node('127.0.0.1', 10001, node_callback)
+        node.start()
+        # devo chiedere al client chi vuole contattare
+        contact = input("Username da contattare: ")
+        addr_to_connect = connect_to_contact(contact, socket)
+        if addr_to_connect != 0:  # e' possibile contattare l'utente richiesto
+            addr_to_connect.split(" ")
+            ip_to_connect = addr_to_connect[0]
+            port_to_connect = addr_to_connect[1]
+            node.connect_with_node(ip_to_connect, port_to_connect)
+            # forse bisogna modificare la libreria affinche' sia disponibile
+            # il nodo dall'altro lato
+            print("Digita '!!' per chiudere la connessione\n")
+            # trova un modo per contattare un altro utente
+            msg = []
+            while 1:
+                msg = input('>>')
+                if msg == '!!':
+                    # chiudere la connessione
+                    break
+                else:
+                    node.send_to_node()
 
 
 ''' def conn_to_server():

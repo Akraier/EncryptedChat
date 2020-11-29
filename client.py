@@ -7,12 +7,11 @@ def login(username):
     print("sono nella login")
     socket.sendall(bytes('2'+username, 'utf-8'))
     ricevuto = socket.recv(1024)
-    print('RICEVUTO: ', ricevuto.decode('utf-8'))
-    if ricevuto.decode('utf-8') == '-1':            #in caso di utente non registrato il server risponde con codice -1?
-        print('Username non registrato.')
+    print('RICEVUTO: ', ricevuto)
+    if ricevuto == '-1':            #in caso di utente non registrato il server risponde con codice -1?
         return esito
 
-    f = open(username+'.pem', 'r')          #recupero la mia chiave privata
+    f = open(username+'.pem', 'r')      #recupero la mia chiave privata
     private_key = RSA.import_key(f.read())
     f.close()
 
@@ -26,14 +25,13 @@ def login(username):
     socket.sendall(bytes(message, 'utf-8'))
 
     ricevuto = socket.recv(1024)             #se l'autenticazione è andata a buon fine il server me lo segnala
-    if ricevuto.decode('utf-8') == '1':      #inviando 1 (da vedere se vogliamo cifrare anche questo), altrimenti
+    if ricevuto == '1':                      #inviando 1 (da vedere se vogliamo cifrare anche questo), altrimenti
         return ricevuto                      #qualsiasi cosa mi invia capisco che c'è stato un errore e ritorno errore(-1)
     else:
         return esito
 
 
 def signup(username):
-    print('SONO NELLA SIGNUP')
     #avvio comunicazione con server
     socket.sendall(bytes('1' + username, 'utf-8'))
 
@@ -43,27 +41,33 @@ def signup(username):
     f.write(private_key)
     f.close()
 
-    public_key = key.publickey().export_key()  # generazione chiave pubblica
+    public_key = key.publickey().export_key() # generazione chiave pubblica
     # salvataggio chiave pubblica lato client ?
 
     # spedisco al server la mia chiave pubblica
-        #socket.send(public_key.encode())
-    socket.sendall(bytes(public_key, 'utf-8'))
+    public_key = public_key.decode('utf-8')
+    socket.sendall(bytes(public_key,'utf-8'))
+    print("Spedita la chiave: "+public_key)
+    #socket.send(public_key.exportKey(format='PEM', passphrase=None, pkcs=1))
 
     # aspetto stringa generata casualmente
-    stringa = socket.recv(4096)
+    stringa = socket.recv(16)
+    stringa = stringa.decode('utf-8')
 
-    # cifro con chiave privata del client
+    print("Ecco la stringa ricevuta: "+stringa)
+    # decifro con chiave privata del client
     cipher_rsa = PKCS1_OAEP.new(private_key)
-    stringa_cifrata = cipher_rsa.decrypt(stringa)
+    #stringa = cipher_rsa.decrypt(stringa)
 
     # invio la stringa cifrata al server
-    socket.sendall(bytes(stringa_cifrata, 'utf-8'))
+    socket.sendall(bytes(stringa,'utf-8'))
 
     # aspetto l'ok
     esito = socket.recv(1024)
+    esito = esito.decode('utf-8')
+    print("L'esito è: "+esito)
 
-    if esito == 0:
+    if esito == '0':
         print("Registrazione avvenuta con successo")
         return
     else:
@@ -79,13 +83,13 @@ if __name__ == '__main__':
     socket.connect((host, port))
     socket.sendall(bytes('Ciao bella!', 'utf-8'))
     ricevuto = socket.recv(1024)
-    print(ricevuto.decode('utf-8'))
+    print(ricevuto)
     #socket.close()      #da togliere, farei una funzione logout per eliminare l'indirizzo ip
                         #dal server prima di chiudere
     #login(username)
+    signup(username)
+   # if login(username) == '-1':
 
-    if login(username) == -1:
-        signup(username)
 
 
 ''' def conn_to_server():

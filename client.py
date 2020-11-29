@@ -1,7 +1,8 @@
 import socket as sk
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
-
+from p2pnetwork.node import Node
+import time
 def login(username):
     esito = -1
     print("sono nella login")
@@ -29,7 +30,30 @@ def login(username):
         return ricevuto                      #qualsiasi cosa mi invia capisco che c'è stato un errore e ritorno errore(-1)
     else:
         return esito
+def connect_to_contact(contact, socket):
+    try:
+        to_send = 'connect' + contact
+        socket.sendall(bytes(to_send, 'utf-8'))
+        rcv = socket.recv(1024)
+        received = rcv.decode("utf-8")
 
+
+    except:
+        print('Errore di comunicazione con-to-cont')
+    if  received != 'offline':
+        return received   #restituisce la lista [ ip,porta]
+    else:
+        print('Utente ' + contact + 'offline.\n')
+        return 0
+
+
+def node_callback(event, node, connected_node, data):
+    try:
+        if event != 'node_request_to_stop': # node_request_to_stop does not have any connected_node, while it is the main_node that is stopping!
+            print('Event: {} from main node {}: connected node {}: {}'.format(event, node.id, connected_node.id, data))
+
+    except Exception as e:
+        print(e)
 
 def signup(username):
     #avvio comunicazione con server
@@ -41,33 +65,27 @@ def signup(username):
     f.write(private_key)
     f.close()
 
-    public_key = key.publickey().export_key() # generazione chiave pubblica
+    public_key = key.publickey().export_key()  # generazione chiave pubblica
     # salvataggio chiave pubblica lato client ?
 
     # spedisco al server la mia chiave pubblica
-    public_key = public_key.decode('utf-8')
-    socket.sendall(bytes(public_key,'utf-8'))
-    print("Spedita la chiave: "+public_key)
-    #socket.send(public_key.exportKey(format='PEM', passphrase=None, pkcs=1))
+        #socket.send(public_key.encode())
+    socket.sendall(bytes(public_key, 'utf-8'))
 
     # aspetto stringa generata casualmente
-    stringa = socket.recv(16)
-    stringa = stringa.decode('utf-8')
+    stringa = socket.recv(4096)
 
-    print("Ecco la stringa ricevuta: "+stringa)
-    # decifro con chiave privata del client
+    # cifro con chiave privata del client
     cipher_rsa = PKCS1_OAEP.new(private_key)
-    #stringa = cipher_rsa.decrypt(stringa)
+    stringa_cifrata = cipher_rsa.decrypt(stringa)
 
     # invio la stringa cifrata al server
-    socket.sendall(bytes(stringa,'utf-8'))
+    socket.sendall(bytes(stringa_cifrata, 'utf-8'))
 
     # aspetto l'ok
     esito = socket.recv(1024)
-    esito = esito.decode('utf-8')
-    print("L'esito è: "+esito)
 
-    if esito == '0':
+    if esito == 0:
         print("Registrazione avvenuta con successo")
         return
     else:
@@ -86,10 +104,29 @@ if __name__ == '__main__':
     print(ricevuto)
     #socket.close()      #da togliere, farei una funzione logout per eliminare l'indirizzo ip
                         #dal server prima di chiudere
-    #login(username)
-    signup(username)
-   # if login(username) == '-1':
-
+    if login(username) == 1:
+        node = Node('127.0.0.1', 10001, node_callback)
+        node.start()
+        # devo chiedere al client chi vuole contattare
+        contact = input("Username da contattare: ")
+        addr_to_connect = connect_to_contact(contact, socket)
+        if addr_to_connect != 0:  # e' possibile contattare l'utente richiesto
+            addr_to_connect.split(" ")
+            ip_to_connect = addr_to_connect[0]
+            port_to_connect = addr_to_connect[1]
+            node.connect_with_node(ip_to_connect, port_to_connect)
+            # forse bisogna modificare la libreria affinche' sia disponibile
+            # il nodo dall'altro lato
+            print("Digita '!!' per chiudere la connessione\n")
+            # trova un modo per contattare un altro utente
+            msg = []
+            while 1:
+                msg = input('>>')
+                if msg == '!!':
+                    # chiudere la connessione
+                    break
+                else:
+                    node.send_to_node()
 
 
 ''' def conn_to_server():

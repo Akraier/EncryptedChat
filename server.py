@@ -53,10 +53,13 @@ def login(username):
     else:                                               #altrimenti errore di autenticazione (-1)
         conn.sendall(bytes('-1', 'utf-8'))
 
-def random_string(length):
-    letters = string.ascii_lowercase
+
+
+def get_random_string(length):
+    letters = string.ascii_letters
     result_str = ''.join(random.choice(letters) for i in range(length))
-    print("Random string of length", length, "is:", result_str)
+    #print("Random string is:", result_str)
+    return result_str
 
 def signup(username):
     print("Sono nella signup")

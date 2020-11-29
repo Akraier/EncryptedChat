@@ -30,6 +30,7 @@ def login(username):
         return ricevuto                      #qualsiasi cosa mi invia capisco che c'è stato un errore e ritorno errore(-1)
     else:
         return esito
+
 def connect_to_contact(contact, socket):
     try:
         to_send = 'connect' + contact
@@ -40,7 +41,7 @@ def connect_to_contact(contact, socket):
 
     except:
         print('Errore di comunicazione con-to-cont')
-    if  received != 'offline':
+    if received != 'offline':
         return received   #restituisce la lista [ ip,porta]
     else:
         print('Utente ' + contact + 'offline.\n')
@@ -56,6 +57,7 @@ def node_callback(event, node, connected_node, data):
         print(e)
 
 def signup(username):
+    print('SONO NELLA SIGNUP')
     #avvio comunicazione con server
     socket.sendall(bytes('1' + username, 'utf-8'))
 
@@ -66,24 +68,37 @@ def signup(username):
     f.close()
 
     public_key = key.publickey().export_key()  # generazione chiave pubblica
+    public_key = key.publickey().export_key() # generazione chiave pubblica
     # salvataggio chiave pubblica lato client ?
 
     # spedisco al server la mia chiave pubblica
         #socket.send(public_key.encode())
     socket.sendall(bytes(public_key, 'utf-8'))
+    public_key = public_key.decode('utf-8')
+    socket.sendall(bytes(public_key,'utf-8'))
+    print("Spedita la chiave: "+public_key)
+    #socket.send(public_key.exportKey(format='PEM', passphrase=None, pkcs=1))
 
     # aspetto stringa generata casualmente
     stringa = socket.recv(4096)
+    stringa = socket.recv(16)
+    stringa = stringa.decode('utf-8')
 
     # cifro con chiave privata del client
+    print("Ecco la stringa ricevuta: "+stringa)
+    # decifro con chiave privata del client
     cipher_rsa = PKCS1_OAEP.new(private_key)
     stringa_cifrata = cipher_rsa.decrypt(stringa)
+    #stringa = cipher_rsa.decrypt(stringa)
 
     # invio la stringa cifrata al server
     socket.sendall(bytes(stringa_cifrata, 'utf-8'))
+    socket.sendall(bytes(stringa,'utf-8'))
 
     # aspetto l'ok
     esito = socket.recv(1024)
+    esito = esito.decode('utf-8')
+    print("L'esito è: "+esito)
 
     if esito == 0:
         print("Registrazione avvenuta con successo")

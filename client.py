@@ -67,40 +67,38 @@ def signup(username):
     f.write(private_key)
     f.close()
 
-    public_key = key.publickey().export_key()  # generazione chiave pubblica
+
     public_key = key.publickey().export_key() # generazione chiave pubblica
     # salvataggio chiave pubblica lato client ?
 
+    public_key = public_key.decode('utf-8')
     # spedisco al server la mia chiave pubblica
         #socket.send(public_key.encode())
     socket.sendall(bytes(public_key, 'utf-8'))
-    public_key = public_key.decode('utf-8')
-    socket.sendall(bytes(public_key,'utf-8'))
+    #public_key = public_key.decode('utf-8')
     print("Spedita la chiave: "+public_key)
     #socket.send(public_key.exportKey(format='PEM', passphrase=None, pkcs=1))
 
     # aspetto stringa generata casualmente
-    stringa = socket.recv(4096)
     stringa = socket.recv(16)
     stringa = stringa.decode('utf-8')
 
-    # cifro con chiave privata del client
+
     print("Ecco la stringa ricevuta: "+stringa)
     # decifro con chiave privata del client
     cipher_rsa = PKCS1_OAEP.new(private_key)
-    stringa_cifrata = cipher_rsa.decrypt(stringa)
-    #stringa = cipher_rsa.decrypt(stringa)
+    stringa_decifrata = stringa#stringa_decifrata = cipher_rsa.decrypt(stringa)
+
 
     # invio la stringa cifrata al server
-    socket.sendall(bytes(stringa_cifrata, 'utf-8'))
-    socket.sendall(bytes(stringa,'utf-8'))
+    socket.sendall(bytes(stringa_decifrata, 'utf-8'))
 
     # aspetto l'ok
     esito = socket.recv(1024)
     esito = esito.decode('utf-8')
     print("L'esito è: "+esito)
 
-    if esito == 0:
+    if esito == '0':
         print("Registrazione avvenuta con successo")
         return
     else:
@@ -119,7 +117,8 @@ if __name__ == '__main__':
     print(ricevuto)
     #socket.close()      #da togliere, farei una funzione logout per eliminare l'indirizzo ip
                         #dal server prima di chiudere
-    if login(username) == 1:
+    signup(username)
+    '''if login(username) == 1:
         node = Node('127.0.0.1', 10001, node_callback)
         node.start()
         # devo chiedere al client chi vuole contattare
@@ -142,7 +141,7 @@ if __name__ == '__main__':
                     break
                 else:
                     node.send_to_node()
-
+    '''
 
 ''' def conn_to_server():
    try:

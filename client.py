@@ -1,4 +1,7 @@
+import binascii
 import socket as sk
+from base64 import b64decode
+
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
 from p2pnetwork.node import Node
@@ -61,37 +64,47 @@ def signup(username):
     #avvio comunicazione con server
     socket.sendall(bytes('1' + username, 'utf-8'))
 
-    key = RSA.generate(2048)  # client genera la chiave privata
-    private_key = key.export_key()
+    keys = RSA.generate(2048)  # client genera la chiave privata
+    private_key_PEM = keys.export_key()
     f = open(username + '.pem', 'wb')  # crea un file per salvarla
-    f.write(private_key)
+    f.write(private_key_PEM)
     f.close()
 
+    public_key = keys.publickey() # generazione chiave pubblica
+    public_key_send = public_key.export_key()
+    public_key_send = public_key_send.decode('utf-8')
 
-    public_key = key.publickey().export_key() # generazione chiave pubblica
     # salvataggio chiave pubblica lato client ?
 
-    public_key = public_key.decode('utf-8')
-    # spedisco al server la mia chiave pubblica
-        #socket.send(public_key.encode())
-    socket.sendall(bytes(public_key, 'utf-8'))
-    #public_key = public_key.decode('utf-8')
-    print("Spedita la chiave: "+public_key)
-    #socket.send(public_key.exportKey(format='PEM', passphrase=None, pkcs=1))
+    #PROVE, ESEMPIO FUNZIONANTE DI CRIPTAZIONE E DECIFRAZIONE
+   # mex = 'Ciao prova'
+   # mex=bytes(mex,'utf-8')
+   # encryptor = PKCS1_OAEP.new(public_key)  # PROVA
+   # mex_cifrato = encryptor.encrypt(mex)  # PROVA
+   # print("Messaggio cifrato: ",mex_cifrato)
 
-    # aspetto stringa generata casualmente
-    stringa = socket.recv(16)
-    stringa = stringa.decode('utf-8')
+   # decryptor = PKCS1_OAEP.new(keys)
+   # mex_decifrato = decryptor.decrypt(mex_cifrato)
+   # print("Ora l'ho decifrato: ",mex_decifrato)
 
 
-    print("Ecco la stringa ricevuta: "+stringa)
+    # spedisco al server la chiave pubblica
+    socket.sendall(bytes(public_key_send, 'utf-8'))
+    print("Spedita la chiave: ",public_key_send)
+
+    # aspetto stringa casuale criptata
+    stringa = socket.recv(2048)
+
+    print("Ecco la stringa ricevuta: ",stringa)
+
     # decifro con chiave privata del client
-    cipher_rsa = PKCS1_OAEP.new(private_key)
-    stringa_decifrata = stringa#stringa_decifrata = cipher_rsa.decrypt(stringa)
+    cipher_rsa = PKCS1_OAEP.new(keys)
+    stringa_decifrata = cipher_rsa.decrypt(stringa)
 
+    print("Stringa decifrata :",stringa_decifrata)
 
     # invio la stringa cifrata al server
-    socket.sendall(bytes(stringa_decifrata, 'utf-8'))
+    socket.sendall(stringa_decifrata)
 
     # aspetto l'ok
     esito = socket.recv(1024)

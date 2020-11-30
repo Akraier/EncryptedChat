@@ -64,43 +64,51 @@ def get_random_string(length):
 def signup(username):
     print("Sono nella signup")
     #riceve chiave pubblica
-    key_public_client = conn.recv(2048)
-    key_public_client.decode('utf-8')
-    #key_public_client = RSA.importKey(conn.recv(2048), passphrase=None)
-    #key_public_client.decode('utf-8')
+    key_public_client_PEM = conn.recv(2048)
+    key_public_client_PEM = key_public_client_PEM.decode('utf-8')
 
-    print(key_public_client)
-    #print(key_public_client.decode('utf-8'))
+    print(key_public_client_PEM)
     print("ricevuta chiave pubblica")
 
-    #genera stringa casuale e la invia
-    stringa_casuale = "aaaaaaaaaaaaaaaa"
-    print("Ecco la stringa generata: "+stringa_casuale)
-    conn.sendall(bytes(stringa_casuale, 'utf-8'))
+    key_public_client = RSA.import_key(key_public_client_PEM) #Recupero la chiave dal formato PEM
+    print("Questa è la chiave:",key_public_client) #in formato RsaKey
+    #genera stringa casuale
+    stringa_casuale = get_random_string(16)
+    bytes_stringa_casuale = bytes(stringa_casuale,'utf-8')
+    print("Stringa generata: ",bytes_stringa_casuale)
+
+    #Cripto la stringa generata casualmente con la chiave pubblica del client
+    encryptor = PKCS1_OAEP.new(key_public_client)
+    stringa_cifrata = encryptor.encrypt(bytes_stringa_casuale)
+    print("La stringa è stata cifrata correttamente :",stringa_cifrata)
+
+    conn.sendall(stringa_cifrata) #invio la stringa cifrata
 
     print("Stringa inviata")
     #riceve stringa decifrata con key private del client
-    stringa_decifrata = conn.recv(16)
+    stringa_decifrata = conn.recv(2048)
     stringa_decifrata = stringa_decifrata.decode('utf-8')
 
-    print("Stringa ricevuta")
+    print("Stringa decriptata dal client: ",stringa_decifrata)
+    print("Stringa generata inizialmente: ",stringa_casuale)
 
-    cipher_rsa = PKCS1_OAEP.new(key_public_client)
-   # stringa = cipher_rsa.encrypt(stringa_decifrata)
-
-
-    print("Stringa decriptata dal client: "+stringa_decifrata)
-    print("Stringa generata inizialmente: "+stringa_casuale)
     if stringa_decifrata == stringa_casuale:
         print("Stringhe uguali")
         #memorizzo username e chiave pubblica del nuovo utente
         f = open('UtentiRegistrati.txt', 'w')
-        f.write(username+' '+key_public_client.decode('utf-8'))
+        print("Chiave in formato stringa:",key_public_client_PEM)
+        f.write(username+" "+key_public_client_PEM)
         f.close()
+
+        print("Registrazione ok")
 
         f = open('UtentiRegistrati.txt', 'r')
         riga_letta = f.read()
-        print("Credenziali registrate: "+riga_letta)
+        print("Credenziali registrate: ", riga_letta)
+        '''
+        chiave_letta = riga_letta.split()[4]
+        print("Chiave riconvertita:",chiave_letta)
+        '''
         f.close()
 
         conn.sendall(bytes('0', 'utf-8'))
@@ -139,7 +147,7 @@ if __name__ == '__main__':
                 conn.close()
             print(data.decode("utf-8"))
             if data.decode("utf-8")[0] == '1':
-                signup(data.decode("utf-8")[1:len(data.decode("utf-8"))-1])
+                signup(data.decode("utf-8")[1:len(data.decode("utf-8"))])
             if data.decode("utf-8")[0] == '2':
                 login(data.decode("utf-8")[1:len(data.decode("utf-8"))])
 

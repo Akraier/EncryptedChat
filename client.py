@@ -72,7 +72,7 @@ def signup(username):
 
     public_key = keys.publickey() # generazione chiave pubblica
     public_key_send = public_key.export_key()
-    public_key_send = public_key_send.decode('utf-8')
+    #public_key_send = public_key_send.decode('utf-8')
 
     # salvataggio chiave pubblica lato client ?
 
@@ -89,7 +89,8 @@ def signup(username):
 
 
     # spedisco al server la chiave pubblica
-    socket.sendall(bytes(public_key_send, 'utf-8'))
+    #socket.sendall(bytes(public_key_send, 'utf-8')) #GIUSTO
+    socket.sendall(public_key_send)
     print("Spedita la chiave: ",public_key_send)
 
     # aspetto stringa casuale criptata
@@ -131,7 +132,8 @@ if __name__ == '__main__':
     #socket.close()      #da togliere, farei una funzione logout per eliminare l'indirizzo ip
                         #dal server prima di chiudere
     signup(username)
-    '''if login(username) == 1:
+    '''
+    if login(username) == 1:
         node = Node('127.0.0.1', 10001, node_callback)
         node.start()
         # devo chiedere al client chi vuole contattare

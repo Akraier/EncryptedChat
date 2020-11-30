@@ -65,7 +65,7 @@ def signup(username):
     print("Sono nella signup")
     #riceve chiave pubblica
     key_public_client_PEM = conn.recv(2048)
-    key_public_client_PEM = key_public_client_PEM.decode('utf-8')
+    #key_public_client_PEM = key_public_client_PEM.decode('utf-8')
 
     print(key_public_client_PEM)
     print("ricevuta chiave pubblica")
@@ -97,18 +97,22 @@ def signup(username):
         #memorizzo username e chiave pubblica del nuovo utente
         f = open('UtentiRegistrati.txt', 'w')
         print("Chiave in formato stringa:",key_public_client_PEM)
-        f.write(username+" "+key_public_client_PEM)
+        f.write(username+"*"+key_public_client_PEM.decode('utf-8'))
         f.close()
 
         print("Registrazione ok")
 
+        #PROVE RECUPERO CHIAVE DAL FILE
         f = open('UtentiRegistrati.txt', 'r')
         riga_letta = f.read()
         print("Credenziali registrate: ", riga_letta)
-        '''
-        chiave_letta = riga_letta.split()[4]
-        print("Chiave riconvertita:",chiave_letta)
-        '''
+
+        chiave=riga_letta.split('*')[1]
+        print("Chiave recuperata dal file",chiave)
+
+        chiave_bytes = bytes(chiave,'utf-8')
+        print("Chiave in formato bytes:",chiave_bytes)
+
         f.close()
 
         conn.sendall(bytes('0', 'utf-8'))
@@ -116,6 +120,7 @@ def signup(username):
     else:
         conn.sendall(bytes('1', 'utf-8'))
         print("Brutta notizia al server inviata")
+    
 
 if __name__ == '__main__':
 

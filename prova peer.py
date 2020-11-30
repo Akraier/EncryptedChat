@@ -6,10 +6,10 @@ import argparse
 import time
 
 
-def node_callback(event, node, connected_node, data):
+def node_callback(event, data):
     try:
         if event != 'node_request_to_stop': # node_request_to_stop does not have any connected_node, while it is the main_node that is stopping!
-            print('Event: {} from main node {}: connected node {}: {}'.format(event, node.id, connected_node.id, data))
+            print('Event {} : {}\n'.format(event, data))
 
     except Exception as e:
         print(e)
@@ -40,9 +40,10 @@ if __name__ == '__main__':
             node_reference = node.nodes_outbound[node.outbound_counter-1]
             while 1:
                 msg = input('>>')
+                tstamp = time.strftime('%H:%M:%S', time.localtime())
                 if msg == 'end':
                     node.outbound_node_disconnected(node_reference)
                     print('sessione chiusa')
                     exit(1)
-                str = args.username + ':' + msg
+                str = args.username + ':' + msg + ' [' + tstamp + ']'
                 node.send_to_node(node_reference, str)

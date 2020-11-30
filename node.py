@@ -48,7 +48,6 @@ class Node(threading.Thread):
         # Server details, host (or ip) to bind to and the port
         self.host = host
         self.port = port
-
         # Events are send back to the given callback
         self.callback = callback
 
@@ -172,12 +171,12 @@ class Node(threading.Thread):
             # Basic information exchange (not secure) of the id's of the nodes!
             sock.send(self.id.encode('utf-8'))  # Send my id to the connected node!
             connected_node_id = sock.recv(4096).decode('utf-8')  # When a node is connected, it sends it id!
-
             thread_client = self.create_new_connection(sock, connected_node_id, host, port)
             thread_client.start()
 
-            self.nodes_outbound[self.outbound_counter] = thread_client
-            self.outbound_counter += 1
+
+            self.nodes_outbound.append(thread_client)
+            self.outbound_counter = self.outbound_counter + 1
             self.outbound_node_connected(thread_client)
 
         except Exception as e:

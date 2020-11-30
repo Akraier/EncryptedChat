@@ -45,7 +45,6 @@ class NodeConnection(threading.Thread):
         self.main_node = main_node
         self.sock = sock
         self.terminate_flag = threading.Event()
-
         # The id of the connected node
         self.id = id
 

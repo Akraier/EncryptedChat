@@ -6,7 +6,7 @@ import argparse
 import time
 
 
-def node_callback(event, data):
+def node_callback(event, node, connected_node, data):
     try:
         if event != 'node_request_to_stop': # node_request_to_stop does not have any connected_node, while it is the main_node that is stopping!
             print('Event {} : {}\n'.format(event, data))

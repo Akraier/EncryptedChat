@@ -38,6 +38,7 @@ def login(username, indirizzo):
         cipher_rsa = PKCS1_OAEP.new(RSA.import_key(PubKeyClient_bytes))
         message = cipher_rsa.encrypt(bytes(random_string,'utf-8'))         # cifro con chiave pubblica del client e mando
         print('stringa random cifrata: ', message)
+        conn.sendall(bytes('1', 'utf-8'))
         conn.sendall(message)
         break
 
@@ -102,9 +103,9 @@ def signup(username):
     if stringa_decifrata == stringa_casuale:
         #print("Stringhe uguali")
         #memorizzo username e chiave pubblica del nuovo utente
-        f = open('UtentiRegistrati.txt', 'w')
+        f = open('UtentiRegistrati.txt', 'a')
         print("Chiave in formato stringa:",key_public_client_PEM)
-        f.write(username+"*"+key_public_client_PEM.decode('utf-8'))
+        f.write(username+" "+key_public_client_PEM.decode('utf-8'))
         f.close()
 
         print("Registrazione ok")
@@ -113,7 +114,7 @@ def signup(username):
         riga_letta = f.read()
         print("Credenziali registrate: ", riga_letta)
 
-        chiave=riga_letta.split('*')[1]
+        chiave = riga_letta.split(' ')[1]
         print("Chiave recuperata dal file",chiave)
 
         chiave_bytes = bytes(chiave,'utf-8')
@@ -152,8 +153,8 @@ if __name__ == '__main__':
     conn, addr = socket.accept()
     print('Got connection from ', addr[0], '(', addr[1], ')')
     ip = bytes(addr[0], 'utf-8')
-    porta = str(addr[1])
-    connection = " " + ip.decode('utf-8') + " " + porta
+    port_host = str(addr[1])
+    connection = " " + ip.decode('utf-8') + " " + port_host
     while True:
         try:
             data = conn.recv(1024)

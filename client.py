@@ -15,17 +15,20 @@ def login(username):
     esito = -1
     print("sono nella login")
     socket.sendall(bytes('2'+username, 'utf-8'))
-    check = socket.recv(1024)
-    if check.decode('utf-8') == '-1':  #in caso di utente non registrato il server risponde con codice -1
+    check = socket.recv(2048)
+    check = check.decode('utf-8')
+    print("CHECK: ", check)
+    if check == '-1':  #in caso di utente non registrato il server risponde con codice -1
         print("USERNAME NON REGISTRATO.")
         return esito
 
+    messaggio = socket.recv(2048)
     f = open(username + '.pem', 'r')      #recupero la mia chiave privata
     private_key = RSA.import_key(f.read())
     f.close()
 
     cipher_rsa = PKCS1_OAEP.new(private_key)
-    message = cipher_rsa.decrypt(ricevuto)  #decifro il messaggio (random) ricevuto dal server con la mia chiave privata
+    message = cipher_rsa.decrypt(messaggio)  #decifro il messaggio (random) ricevuto dal server con la mia chiave privata
 
     f = open('serverPubKey.pem', 'r')
     serverPub_key = RSA.import_key(f.read())            #recupero chiave pubblica del server

@@ -23,6 +23,7 @@ def decifratura(mex):
 def logout(username):
     file_path = "./connessi/" + username + ".txt"
     os.remove(file_path)
+    conn.close()
 
 def login(username, indirizzo):
     print("sono nella login\n")
@@ -179,6 +180,8 @@ if __name__ == '__main__':
                 signup(command[0][1:len(command[0])])
             if command[0][0] == '2':
                 login(command[0][1:len(command[0])], connection)
+            if command[0][0] == '3':
+                logout(command[0][1:len(command[0])])
             if command[0] == 'connect':
                 #command[1] esiste
                 comunication_request(command[1])

@@ -123,13 +123,13 @@ def signup(username):
     # aspetto stringa casuale criptata
     stringa = socket.recv(2048)
 
-    print("Ecco la stringa ricevuta: ",stringa)
+    print("Ecco la stringa ricevuta: ", stringa)
 
     # decifro con chiave privata del client
     cipher_rsa = PKCS1_OAEP.new(keys)
     stringa_decifrata = cipher_rsa.decrypt(stringa)
 
-    print("Stringa decifrata :",stringa_decifrata)
+    print("Stringa decifrata :", stringa_decifrata)
 
     # invio la stringa cifrata al server
     socket.sendall(stringa_decifrata)
@@ -217,13 +217,13 @@ if __name__ == '__main__':
             buffer = ''
         msg = input(args.username + '>>' + receiver + ':')
         choice = msg.split()
-        if (choice[0] == 'connect') and (choice[1] is not []):
+        if (choice[0] == 'connect') and (choice[1] != []):
             if (connected == {}) or (choice[1] not in connected):
                 # tentativo di connessione all'utente
                 tupla = connect_to_contact(choice[1], socket)
                 # !! POINT: possiamo garantire che i dati ricevuti siano corretti per quell' utente?
                 # 1) trudy non ha manipolato i dati scambiandoli con quelli di qualcun altro
-                if tupla is not False:
+                if tupla != False:
                     print('Connected to ' + choice[1])
                     # mi connetto al nodo destinatario con i dati forniti dal server
                     node.connect_with_node(tupla[0], tupla[1])
@@ -234,7 +234,7 @@ if __name__ == '__main__':
                 continue
 
         #BUG: Che succede se un peer si disconnette?trascurabile per i nostri scopi
-        elif receiver is not '':
+        elif receiver != '':
             # devo inviare un messaggio al peer specificato
             # controllo che il peer sia connesso
             if receiver in connected:

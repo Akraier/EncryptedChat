@@ -24,28 +24,38 @@ def logout(username):
     file_path = "./connessi/" + username + ".txt"
     os.remove(file_path)
 
+
+def search_pubKey(username):
+    registrati = open('./UtentiRegistrati.txt', 'r')
+    riga_file = registrati.readline()
+    if username in registrati.read():
+        while riga_file != '':                                 #scorro il file per vedere se l'username è registrato
+            if riga_file.split(" ")[0] != username:
+                riga_file = registrati.readline()
+            elif riga_file.split()[0] == username:
+                break
+        PubKeyClient = '-----BEGIN PUBLIC KEY-----\n'
+        for i in range(8):
+            PubKeyClient = PubKeyClient + file_registrati.readline()
+        return PubKeyClient
+
+
 def login(username, indirizzo):
     print("sono nella login\n")
     file_registrati = open('./UtentiRegistrati.txt', 'r')
     riga_file = file_registrati.readline()
 
-    while riga_file != '':                                 #scorro il file per vedere se l'username è registrato
-        if riga_file.split(" ")[0] != username:
-            riga_file = file_registrati.readline()
-            continue
-        random_string = get_random_string(16)               #genero stringa random per autenticazione del client
-        print("stringa random: ", random_string)
-        PubKeyClient= '-----BEGIN PUBLIC KEY-----\n'
-        for i in range(8):
-            PubKeyClient = PubKeyClient + file_registrati.readline() #prendo la chiave pubblica del client dal file per cifrare la stringa
-        PubKeyClient_bytes = bytes(PubKeyClient, 'utf-8')
-        print('chiave pubblica: ', PubKeyClient)
-        cipher_rsa = PKCS1_OAEP.new(RSA.import_key(PubKeyClient_bytes))
-        message = cipher_rsa.encrypt(bytes(random_string,'utf-8'))         # cifro con chiave pubblica del client e mando
-        print('stringa random cifrata: ', message)
-        conn.sendall(bytes('1', 'utf-8'))
-        conn.sendall(message)
-        break
+    random_string = get_random_string(16)               #genero stringa random per autenticazione del client
+    print("stringa random: ", random_string)
+    PubKey = search_pubKey(username)#prendo la chiave pubblica del client dal file per cifrare la stringa
+    PubKeyClient_bytes = bytes(PubKey, 'utf-8')
+    print('chiave pubblica: ', PubKey)
+    cipher_rsa = PKCS1_OAEP.new(RSA.import_key(PubKeyClient_bytes))
+    message = cipher_rsa.encrypt(bytes(random_string,'utf-8'))         # cifro con chiave pubblica del client e mando
+    print('stringa random cifrata: ', message)
+    conn.sendall(bytes('1', 'utf-8'))
+    conn.sendall(message)
+
 
     if riga_file == '':
         print("NON TROVATO!\n")
@@ -113,10 +123,10 @@ def signup(username):
         print("Credenziali registrate: ", riga_letta)
 
         chiave = riga_letta.split(' ')[1]
-        print("Chiave recuperata dal file",chiave)
+        print("Chiave recuperata dal file", chiave)
 
         chiave_bytes = bytes(chiave,'utf-8')
-        print("Chiave in formato bytes:",chiave_bytes)
+        print("Chiave in formato bytes:", chiave_bytes)
 
         f.close()
 
@@ -138,8 +148,13 @@ def comunication_request(username):
         except:
             print("File '" + file_path + "' does not exist.")
             return
-        ro = online.read()
-
+        ip_port = online.read()
+        #ip_port va mandato tutto al client insieme alla chiave pubblica
+        pubKey = search_pubKey(username)
+        #pubKey_b = bytes(pubKey)
+        #cipher_rsa = PKCS1_OAEP.new(RSA.import_key(pubKey_b))
+        to_send = ip_port + pubKey
+        conn.sendall(bytes(to_send, "utf-8"))
 
 if __name__ == '__main__':
 

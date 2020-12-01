@@ -11,45 +11,53 @@ def get_random_string(length):
     result_str = ''.join(random.choice(letters) for i in range(length))
     return result_str
 
-def decifratura(messaggio):
+def decifratura(mex):
     f = open('serverPrivKey.pem', 'r')  # recupero chiave privata server
     key = RSA.import_key(f.read())
     f.close()
     cipher_rsa = PKCS1_OAEP.new(key)
-    messaggio = cipher_rsa.decrypt(messaggio)
-    return messaggio
+    mex = cipher_rsa.decrypt(mex)
+    return mex
 
-def login(username):
+def login(username, indirizzo):
     print("sono nella login\n")
     file_registrati = open('./UtentiRegistrati.txt', 'r')
     riga_file = file_registrati.readline()
 
     while riga_file != '':                                 #scorro il file per vedere se l'username è registrato
-        print("riga file split: ", riga_file.split(" ")[0])
-        print("USERNAME: ", username)
         if riga_file.split(" ")[0] != username:
             riga_file = file_registrati.readline()
             continue
         random_string = get_random_string(16)               #genero stringa random per autenticazione del client
         print("stringa random: ", random_string)
-        PubKeyClient = riga_file.split(" ")[1]              #prendo la chiave pubblica del client dal file per cifrare la stringa
+        PubKeyClient= '-----BEGIN PUBLIC KEY-----\n'
+        for i in range(8):
+            PubKeyClient = PubKeyClient + file_registrati.readline() #prendo la chiave pubblica del client dal file per cifrare la stringa
+        PubKeyClient_bytes = bytes(PubKeyClient, 'utf-8')
         print('chiave pubblica: ', PubKeyClient)
-        cipher_rsa = PKCS1_OAEP.new(PubKeyClient)
-        message = cipher_rsa.encrypt(random_string)         # cifro con chiave pubblica del client e mando
+        cipher_rsa = PKCS1_OAEP.new(RSA.import_key(PubKeyClient_bytes))
+        message = cipher_rsa.encrypt(bytes(random_string,'utf-8'))         # cifro con chiave pubblica del client e mando
         print('stringa random cifrata: ', message)
-        conn.sendall(bytes(message, 'utf-8'))
+        conn.sendall(message)
         break
 
+    file_registrati.close()
     if riga_file == '':
         print("NON TROVATO!\n")
         conn.sendall(bytes('-1', 'utf-8'))              #caso di utente non registrato, restituisco errore
         return
 
     ricevuto = conn.recv(1024)                            # ricevo stringa random cifrata dal client
-    message = decifratura(ricevuto.decode('utf-8'))
+    print("RICEVUTO: ", ricevuto)
+    messaggio = decifratura(ricevuto)
+    print("stringa random dopo decifratura: ", messaggio)
 
-    if message == random_string:                        #se sono uguali autenticazione andata a buon fine, invio 1
+    if messaggio == bytes(random_string, 'utf-8'):          #se sono uguali autenticazione andata a buon fine, invio 1
+        fd_user = open("./connessi/"+username+".txt", 'w')
+        fd_user.write(indirizzo)
+        fd_user.close()
         conn.sendall(bytes('1', 'utf-8'))
+        print("MANDATO 1!!!!!!!!!!!!!!!!!!!")
     else:                                               #altrimenti errore di autenticazione (-1)
         conn.sendall(bytes('-1', 'utf-8'))
 
@@ -68,36 +76,36 @@ def signup(username):
     key_public_client_PEM = key_public_client_PEM.decode('utf-8')
 
     print(key_public_client_PEM)
-    print("ricevuta chiave pubblica")
+    #print("ricevuta chiave pubblica")
 
     key_public_client = RSA.import_key(key_public_client_PEM) #Recupero la chiave dal formato PEM
-    print("Questa è la chiave:",key_public_client) #in formato RsaKey
+    #print("Questa è la chiave:",key_public_client) #in formato RsaKey
     #genera stringa casuale
     stringa_casuale = get_random_string(16)
-    bytes_stringa_casuale = bytes(stringa_casuale,'utf-8')
-    print("Stringa generata: ",bytes_stringa_casuale)
+    bytes_stringa_casuale = bytes(stringa_casuale, 'utf-8')
+    #print("Stringa generata: ",bytes_stringa_casuale)
 
     #Cripto la stringa generata casualmente con la chiave pubblica del client
     encryptor = PKCS1_OAEP.new(key_public_client)
     stringa_cifrata = encryptor.encrypt(bytes_stringa_casuale)
-    print("La stringa è stata cifrata correttamente :",stringa_cifrata)
+    print("La stringa è stata cifrata correttamente :", stringa_cifrata)
 
     conn.sendall(stringa_cifrata) #invio la stringa cifrata
 
-    print("Stringa inviata")
+    #print("Stringa inviata")
     #riceve stringa decifrata con key private del client
     stringa_decifrata = conn.recv(2048)
     stringa_decifrata = stringa_decifrata.decode('utf-8')
 
-    print("Stringa decriptata dal client: ",stringa_decifrata)
-    print("Stringa generata inizialmente: ",stringa_casuale)
+    #print("Stringa decriptata dal client: ",stringa_decifrata)
+    #print("Stringa generata inizialmente: ",stringa_casuale)
 
     if stringa_decifrata == stringa_casuale:
-        print("Stringhe uguali")
+        #print("Stringhe uguali")
         #memorizzo username e chiave pubblica del nuovo utente
-        f = open('UtentiRegistrati.txt', 'w')
-        print("Chiave in formato stringa:",key_public_client_PEM)
-        f.write(username+" "+key_public_client_PEM)
+        f = open('UtentiRegistrati.txt', 'a')
+        #print("Chiave in formato stringa:", key_public_client_PEM)
+        f.write(username+" "+key_public_client_PEM+"\n")
         f.close()
 
         print("Registrazione ok")
@@ -112,7 +120,7 @@ def signup(username):
         f.close()
 
         conn.sendall(bytes('0', 'utf-8'))
-        print("Comunicazione al server effettuata")
+        #print("Comunicazione al server effettuata")
     else:
         conn.sendall(bytes('1', 'utf-8'))
         print("Brutta notizia al server inviata")
@@ -130,8 +138,8 @@ if __name__ == '__main__':
     f.write(public_key)
     f.close()
 
-    #file_registrati = open('UtentiRegistrati.txt', 'w')
-    #file_registrati.close()
+    file_registrati = open('UtentiRegistrati.txt', 'w')
+    file_registrati.close()
 
     host = sk.gethostname()
     port = 12345
@@ -140,6 +148,9 @@ if __name__ == '__main__':
     socket.listen(10)
     conn, addr = socket.accept()
     print('Got connection from ', addr[0], '(', addr[1], ')')
+    ip = bytes(addr[0], 'utf-8')
+    porta = str(addr[1])
+    connection = " " + ip.decode('utf-8') + " " + porta
     while True:
         try:
             data = conn.recv(1024)
@@ -149,9 +160,9 @@ if __name__ == '__main__':
             if data.decode("utf-8")[0] == '1':
                 signup(data.decode("utf-8")[1:len(data.decode("utf-8"))])
             if data.decode("utf-8")[0] == '2':
-                login(data.decode("utf-8")[1:len(data.decode("utf-8"))])
+                login(data.decode("utf-8")[1:len(data.decode("utf-8"))], connection)
 
-            conn.sendall(bytes('Thank you for connecting', 'utf-8'))
+            #conn.sendall(bytes('Thank you for connecting', 'utf-8'))
 
         except:
             conn.close()

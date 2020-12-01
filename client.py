@@ -6,16 +6,21 @@ from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
 from p2pnetwork.node import Node
 import time
+
+def logout(username):    #TODO!
+    prova = 1
+    return prova
+
 def login(username):
     esito = -1
     print("sono nella login")
     socket.sendall(bytes('2'+username, 'utf-8'))
-    ricevuto = socket.recv(1024)
-    print('RICEVUTO: ', ricevuto)
-    if ricevuto == '-1':            #in caso di utente non registrato il server risponde con codice -1?
+    check = socket.recv(1024)
+    if check.decode('utf-8') == '-1':  #in caso di utente non registrato il server risponde con codice -1
+        print("USERNAME NON REGISTRATO.")
         return esito
 
-    f = open(username+'.pem', 'r')      #recupero la mia chiave privata
+    f = open(username + '.pem', 'r')      #recupero la mia chiave privata
     private_key = RSA.import_key(f.read())
     f.close()
 
@@ -26,11 +31,13 @@ def login(username):
     serverPub_key = RSA.import_key(f.read())            #recupero chiave pubblica del server
     cipher_rsa = PKCS1_OAEP.new(serverPub_key)
     message = cipher_rsa.encrypt(message)               #cifro con chiave pubblica del server e mando
-    socket.sendall(bytes(message, 'utf-8'))
+    socket.sendall(message)
 
-    ricevuto = socket.recv(1024)             #se l'autenticazione è andata a buon fine il server me lo segnala
-    if ricevuto == '1':                      #inviando 1 (da vedere se vogliamo cifrare anche questo), altrimenti
-        return ricevuto                      #qualsiasi cosa mi invia capisco che c'è stato un errore e ritorno errore(-1)
+    receved = socket.recv(1024)    #se l'autenticazione è andata a buon fine il server me lo segnala
+    receved = receved.decode('utf-8')
+    if receved == '1':                             #inviando 1 (da vedere se vogliamo cifrare anche questo), altrimenti
+        print("LOGIN AVVENUTA CON SUCCESSO")        #qualsiasi cosa mi invia capisco che c'è stato un errore e ritorno errore(-1)
+        return receved
     else:
         return esito
 
@@ -119,12 +126,49 @@ def signup(username):
 
 if __name__ == '__main__':
 
-    username = input("inserisci il tuo username: ")
-
     host = sk.gethostname()
     port = 12345
     socket = sk.socket(sk.AF_INET, sk.SOCK_STREAM)
     socket.connect((host, port))
+
+    menu = 0
+    print("**************WELCOME TO ENCRYPTED CHAT****************\n")
+
+    while menu == 0:
+        comando = input("1--> signup\n"
+                        "2--> login\n"
+                        "3--> quit\n"
+                        ">>")
+
+        if comando == '1' or comando == '2':
+            username = input("inserisci il tuo username: ")
+            if comando == '1':
+                signup(username)
+            else:
+                if login(username) == '1':      #login avvenuta con successo
+                    menu = 1
+        else:
+            socket.close()
+            exit()
+
+    while menu == 1:
+        comando = input("1--> connect to another host\n"
+                        "2--> logout\n"
+                        "3--> quit\n"
+                        ">>")
+        if comando == 1:
+            prova =1        #da togliere
+            #connect_to_contact()
+        elif comando == 2:
+            menu = 0
+            logout(username)
+        else:
+            logout(username)
+            socket.close()
+            exit()
+
+
+
     socket.sendall(bytes('Ciao bella!', 'utf-8'))
     ricevuto = socket.recv(1024)
     print(ricevuto)

@@ -177,10 +177,13 @@ if __name__ == '__main__':
             else:
                 logged = login(args.username)
                 if logged == '1':      #login avvenuta con successo
+                    loggato = 1
                     menu = 1
                 elif logged == '-1':
                     continue
         elif comando == 3:
+            if loggato == 1:
+                socket.sendall(bytes('3 '+args.username, 'utf-8'))
             socket.close()
             exit(1)
         else:

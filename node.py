@@ -141,7 +141,7 @@ class Node(threading.Thread):
         if n in self.nodes_inbound or n in self.nodes_outbound:
             try:
                 n.send(data)
-                #self.msg_sent(self)
+                self.msg_sent(n, data)
             except Exception as e:
                 self.debug_print("Node send_to_node: Error while sending data to the node (" + str(e) + ")")
         else:
@@ -257,11 +257,11 @@ class Node(threading.Thread):
         self.sock.close()
         print("Node stopped")
 
-    def msg_sent(self, node):
+    def msg_sent(self, node, data):
         """Invoked when a message is sent """
         self.debug_print("message sent:" + node.id)
         if self.callback is not None:
-            self.callback("message sent", self, node, {})
+            self.callback("message sent", self, node, data)
 
     def outbound_node_connected(self, node):
         """This method is invoked when a connection with a outbound node was successfull. The node made
@@ -293,7 +293,7 @@ class Node(threading.Thread):
         """This method is invoked when a node send us a message."""
         self.debug_print("node_message: " + node.id + ": " + str(data))
         if self.callback is not None:
-            self.callback("node_message", self, node, data)
+            self.callback("message received ", self, node, data)
 
     def node_disconnect_with_outbound_node(self, node):
         """This method is invoked just before the connection is closed with the outbound node. From the node

@@ -67,13 +67,6 @@ def login(username, indirizzo):
         conn.sendall(bytes('-1', 'utf-8'))
 
 
-
-def get_random_string(length):
-    letters = string.ascii_letters
-    result_str = ''.join(random.choice(letters) for i in range(length))
-    #print("Random string is:", result_str)
-    return result_str
-
 def signup(username):
     print("Sono nella signup")
     #riceve chiave pubblica
@@ -134,6 +127,20 @@ def signup(username):
         print("Brutta notizia al server inviata")
 
 
+def comunication_request(username):
+    #devo cercare l'username nel file degli utenti
+    registered = open('./UtentiRegistrati.txt', 'r')
+    reg_r = registered.read()
+    if username in reg_r:
+        file_path = './connessi/' + username + '.txt'
+        try:
+            online = open(file_path, 'r')
+        except:
+            print("File '" + file_path + "' does not exist.")
+            return
+        ro = online.read()
+
+
 if __name__ == '__main__':
 
     key = RSA.generate(2048)            #generazioni chiave privata per il server
@@ -165,13 +172,17 @@ if __name__ == '__main__':
             data = conn.recv(1024)
             if not data:
                 conn.close()
+            r = data.decode("utf-8")
+            command = r.split()
             print(data.decode("utf-8"))
-            if data.decode("utf-8")[0] == '1':
-                signup(data.decode("utf-8")[1:len(data.decode("utf-8"))])
-            if data.decode("utf-8")[0] == '2':
-                login(data.decode("utf-8")[1:len(data.decode("utf-8"))], connection)
-
-            #conn.sendall(bytes('Thank you for connecting', 'utf-8'))
+            if command[0][0] == '1':
+                signup(command[0][1:len(command[0])])
+            if command[0][0] == '2':
+                login(command[0][1:len(command[0])], connection)
+            if command[0] == 'connect':
+                #command[1] esiste
+                comunication_request(command[1])
+            # conn.sendall(bytes('Thank you for connecting', 'utf-8'))
 
         except:
             conn.close()

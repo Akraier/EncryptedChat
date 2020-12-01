@@ -4,8 +4,23 @@ from base64 import b64decode
 
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
-from p2pnetwork.node import Node
+#from p2pnetwork.node import Node
+from node import Node
 import time
+import argparse
+
+buffer = ''
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='p2p')
+    group = parser.add_argument_group('Arguments')
+    group.add_argument('-u', '--username', required=True, type=str, help="User nickname")
+    group.add_argument('-bp', '--port', required=True, type=int, help='Port')
+    group.add_argument('-bi', '--ip', required=True, type=str, help='IP Address')
+    arguments = parser.parse_args()
+    return arguments
+
+
 
 def logout(username):    #TODO!
     prova = 1
@@ -19,7 +34,7 @@ def login(username):
     check = check.decode('utf-8')
     print("CHECK: ", check)
     if check == '-1':  #in caso di utente non registrato il server risponde con codice -1
-        print("USERNAME NON REGISTRATO.")
+        print("Please")
         return esito
 
     messaggio = socket.recv(2048)
@@ -44,30 +59,32 @@ def login(username):
     else:
         return esito
 
+
 def connect_to_contact(contact, socket):
     try:
-        to_send = 'connect' + contact
+        '''Chiedo al server informazioni sull utente contact'''
+        to_send = 'connect ' + contact
         socket.sendall(bytes(to_send, 'utf-8'))
         rcv = socket.recv(1024)
         received = rcv.decode("utf-8")
-
-
+        if received != 'offline':
+            return received  # restituisce la lista [ ip,porta]
+        else:
+            print('Utente ' + contact + 'offline.\n')
+            return False
     except:
         print('Errore di comunicazione con-to-cont')
-    if received != 'offline':
-        return received   #restituisce la lista [ ip,porta]
-    else:
-        print('Utente ' + contact + 'offline.\n')
-        return 0
 
 
 def node_callback(event, node, connected_node, data):
     try:
-        if event != 'node_request_to_stop': # node_request_to_stop does not have any connected_node, while it is the main_node that is stopping!
-            print('Event: {} from main node {}: connected node {}: {}'.format(event, node.id, connected_node.id, data))
-
+        if event != 'message received': # node_request_to_stop does not have any connected_node, while it is the main_node that is stopping!
+            print('{}: {}'.format(event, data))
+        elif event == 'message received':
+            buffer = event + data + '\n'
     except Exception as e:
         print(e)
+
 
 def signup(username):
     print('SONO NELLA SIGNUP')
@@ -128,8 +145,17 @@ def signup(username):
     else:
         print("Si è verificato un errore")
 
-if __name__ == '__main__':
 
+def menu_():
+    print('Use the following commands to interact:\n')
+    print("-'connect username' try to contact desired user.\n ")
+    print("If no error occur, after this you can digit your messages and them will be sent\n"
+          "through the last connection until a new 'connect username' occur.")
+    print("-'end' close all the connection with this peer, end the program.\n")
+    print("-'menu' review following commands. \n")
+
+if __name__ == '__main__':
+    args = parse_args()
     host = sk.gethostname()
     port = 12345
     socket = sk.socket(sk.AF_INET, sk.SOCK_STREAM)
@@ -145,78 +171,90 @@ if __name__ == '__main__':
                         ">>")
 
         if comando == '1' or comando == '2':
-            username = input("inserisci il tuo username: ")
             if comando == '1':
-                signup(username)
+                signup(args.username)
+                continue
             else:
-                if login(username) == '1':      #login avvenuta con successo
+                logged = login(args.username)
+                if logged == '1':      #login avvenuta con successo
                     menu = 1
-        else:
+                elif logged == '-1':
+                    continue
+        elif comando == 3:
             socket.close()
-            exit()
-
+            exit(1)
+        else:
+            print('Please, use one of the given command')
+    '''
     while menu == 1:
         comando = input("1--> connect to another host\n"
                         "2--> logout\n"
                         "3--> quit\n"
                         ">>")
         if comando == 1:
-            prova =1        #da togliere
+            prova = 1        #da togliere
             #connect_to_contact()
         elif comando == 2:
             menu = 0
-            logout(username)
+            logout(args.username)
         else:
-            logout(username)
+            logout(args.username)
             socket.close()
             exit()
-
-
-
-    socket.sendall(bytes('Ciao bella!', 'utf-8'))
-    ricevuto = socket.recv(1024)
-    print(ricevuto)
-    #socket.close()      #da togliere, farei una funzione logout per eliminare l'indirizzo ip
-                        #dal server prima di chiudere
-    signup(username)
     '''
-    if login(username) == 1:
-        node = Node('127.0.0.1', 10001, node_callback)
-        node.start()
-        # devo chiedere al client chi vuole contattare
-        contact = input("Username da contattare: ")
-        addr_to_connect = connect_to_contact(contact, socket)
-        if addr_to_connect != 0:  # e' possibile contattare l'utente richiesto
-            addr_to_connect.split(" ")
-            ip_to_connect = addr_to_connect[0]
-            port_to_connect = addr_to_connect[1]
-            node.connect_with_node(ip_to_connect, port_to_connect)
-            # forse bisogna modificare la libreria affinche' sia disponibile
-            # il nodo dall'altro lato
-            print("Digita '!!' per chiudere la connessione\n")
-            # trova un modo per contattare un altro utente
-            msg = []
-            while 1:
-                msg = input('>>')
-                if msg == '!!':
-                    # chiudere la connessione
-                    break
-                else:
-                    node.send_to_node()
-    '''
+    node = Node(args.ip, args.port, node_callback)
+    node.start()
+    connected = {}      #dizionario dei peer connessi
+    msg = ''
+    receiver = ''
+    menu_()
+    while 1:
+        #>> connect username mi connette all'utente username e i messaggi successivi vengono inviati a lui
+        # finche' non viene eseguita una connect username2
 
-''' def conn_to_server():
-   try:
-        socket = sk.socket(sk.AF_INET, sk.SOCK_STREAM) #creazione socket client
-        socket.connect((indirizzo_server,porta_server)) #connessione al server
-        print("Connessione al server effettuata")
+        if buffer != '':
+            print(buffer)
+            buffer = ''
+        msg = input(args.username + '>>' + receiver + ':')
+        choice = msg.split()
+        if (choice[0] == 'connect') and (choice[1] is not []):
+            if (connected == {}) or (choice[1] not in connected):
+                # tentativo di connessione all'utente
+                tupla = connect_to_contact(choice[1], socket)
+                # !! POINT: possiamo garantire che i dati ricevuti siano corretti per quell' utente?
+                # 1) trudy non ha manipolato i dati scambiandoli con quelli di qualcun altro
+                if tupla is not False:
+                    print('Connected to ' + choice[1])
+                    # mi connetto al nodo destinatario con i dati forniti dal server
+                    node.connect_with_node(tupla[0], tupla[1])
+                    # mantengo aggiornato un dizionario di referenze username:nodo
+                    connected[choice[1]] = node.nodes_outbound[node.outbound_counter - 1]
+                    receiver = choice[1]
+                    continue
+                continue
 
-        #creazione username e generazione key public e key private
-        username = input("Inserire username:")
-        socket.send(username, 'utf-8')
+        #BUG: Che succede se un peer si disconnette?trascurabile per i nostri scopi
+        elif receiver is not '':
+            # devo inviare un messaggio al peer specificato
+            # controllo che il peer sia connesso
+            if receiver in connected:
+                # invia il messaggio
+                tstamp = time.strftime('%H:%M:%S', time.localtime())
+                str = args.username + ': ' + msg + ' [' + tstamp + ']'
+                node.send_to_node(connected[choice[1]], str)
+                continue
+            else:
+                print("Specified user is not connected, please connect first to the user with 'connect' command\n")
+                continue
+        elif choice[0] == 'end':
+            # chiudere tutte le connessioni e terminare il client
+            node.send_to_nodes(args.username + ' disconnected.')
+            node.stop()
 
-
-   except sk.error as errore:
-        print("Connessione non riuscita"+errore)
-'''
+            exit(1)
+        elif choice[0] == 'menu':
+            menu_()
+            continue
+        else:
+            print('Please, use one of te specified command')
 

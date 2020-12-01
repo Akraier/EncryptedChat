@@ -1,5 +1,6 @@
 import socket as sk
 import sys
+import os
 import random
 import string
 from Crypto.PublicKey import RSA
@@ -18,6 +19,10 @@ def decifratura(mex):
     cipher_rsa = PKCS1_OAEP.new(key)
     mex = cipher_rsa.decrypt(mex)
     return mex
+
+def logout(username):
+    file_path = "./connessi/" + username + ".txt"
+    os.remove(file_path)
 
 def login(username, indirizzo):
     print("sono nella login\n")

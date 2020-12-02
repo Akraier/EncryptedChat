@@ -49,7 +49,7 @@ def login(username):
     cipher_rsa = PKCS1_OAEP.new(private_key)
     message = cipher_rsa.decrypt(messaggio)  #decifro il messaggio (random) ricevuto dal server con la mia chiave privata
 
-    print("Messaggio decifrato",message)
+    print("Messaggio decifrato", message)
 
     f = open('serverPubKey.pem', 'r')
     serverPub_key = RSA.import_key(f.read())            #recupero chiave pubblica del server

@@ -151,7 +151,7 @@ def signup(username):
         #memorizzo username e chiave pubblica del nuovo utente
         f = open('UtentiRegistrati.txt', 'a')
         print("Chiave in formato stringa:", key_public_client_PEM)
-        f.write(username+" "+key_public_client_PEM.decode('utf-8'))
+        f.write(username+" "+key_public_client_PEM.decode('utf-8')+"\n")
         f.close()
 
         print("Registrazione ok")
@@ -215,32 +215,43 @@ if __name__ == '__main__':
     socket = sk.socket()
     socket.bind((host, port))
     socket.listen(10)
-    conn, addr = socket.accept()
-    print('Got connection from ', addr[0], '(', addr[1], ')')
-    ip = bytes(addr[0], 'utf-8')
-    port_host = str(addr[1])
-    connection = " " + ip.decode('utf-8') + " " + port_host
-    while True:
-        try:
-            data = conn.recv(1024)
-            if not data:
-                conn.close()
-            r = data.decode("utf-8")
-            command = r.split()
-            print(data.decode("utf-8"))
-            if command[0][0] == '1':
-                signup(command[0][1:len(command[0])])
-            if command[0][0] == '2':
-                login(command[0][1:len(command[0])], connection)
-            if command[0][0] == '3':
-                logout(command[0][1:len(command[0])])
-            if command[0] == 'connect':
-                #command[1] esiste
-                comunication_request(command[1])
-            # conn.sendall(bytes('Thank you for connecting', 'utf-8'))
-
-        except:
+    while 1:
+        conn, addr = socket.accept()
+        pid = os.fork()
+        if pid == -1:
+            print('fork error')
+            exit(1)
+        elif pid > 0:
+            # father
             conn.close()
-            print("Connection closed by", addr)
-            # Quit the thread.
-            sys.exit()
+        elif pid == 0:
+            # child
+            socket.close()
+            print('Got connection from ', addr[0], '(', addr[1], ')')
+            ip = bytes(addr[0], 'utf-8')
+            port_host = str(addr[1])
+            connection = " " + ip.decode('utf-8') + " " + port_host
+            while True:
+                try:
+                    data = conn.recv(1024)
+                    if not data:
+                        conn.close()
+                    r = data.decode("utf-8")
+                    command = r.split()
+                    print(data.decode("utf-8"))
+                    if command[0][0] == '1':
+                        signup(command[0][1:len(command[0])])
+                    if command[0][0] == '2':
+                        login(command[0][1:len(command[0])], connection)
+                    if command[0][0] == '3':
+                        logout(command[0][1:len(command[0])])
+                    if command[0] == 'connect':
+                        #command[1] esiste
+                        comunication_request(command[1])
+                    # conn.sendall(bytes('Thank you for connecting', 'utf-8'))
+
+                except:
+                    conn.close()
+                    print("Connection closed by", addr)
+                    # Quit the thread.
+                    sys.exit()

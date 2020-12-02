@@ -33,8 +33,10 @@ def search_pubKey(username):
         while riga_file != '':                                 #scorro il file per vedere se l'username è registrato
             if riga_file.split(" ")[0] != username:
                 riga_file = registrati.readline()
-            elif riga_file.split()[0] == username:
-                break
+                continue
+            break
+            #elif riga_file.split()[0] == username:
+               # break
         PubKeyClient = '-----BEGIN PUBLIC KEY-----\n'
         for i in range(8):
             PubKeyClient = PubKeyClient + file_registrati.readline()
@@ -113,7 +115,7 @@ def signup(username):
         #print("Stringhe uguali")
         #memorizzo username e chiave pubblica del nuovo utente
         f = open('UtentiRegistrati.txt', 'a')
-        print("Chiave in formato stringa:",key_public_client_PEM)
+        print("Chiave in formato stringa:", key_public_client_PEM)
         f.write(username+" "+key_public_client_PEM.decode('utf-8'))
         f.close()
 

@@ -5,6 +5,7 @@ import random
 import string
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
+from Crypto.Hash import HMAC, SHA256
 
 def get_random_string(length):
     # Random string with the combination of lower and upper case
@@ -74,13 +75,44 @@ def login(username, indirizzo):
     print("stringa random dopo decifratura: ", messaggio)
 
     if messaggio == bytes(random_string, 'utf-8'):          #se sono uguali autenticazione andata a buon fine, invio 1
+        print("Si sono uguali")
         fd_user = open("./connessi/"+username+".txt", 'w')
+        print("Aperto file")
         fd_user.write(indirizzo)
+        print("SCritto file")
         fd_user.close()
+        print("Chiuso")
         conn.sendall(bytes('1', 'utf-8'))
         print("MANDATO 1!!!!!!!!!!!!!!!!!!!")
+
+        '''
+        #PROVA MAC LATO SERVER
+        secret = get_random_string(16)
+        secret = bytes(secret, 'utf-8')
+        print("Il segreto generato è:",secret)
+        #codifico il segreto e lo spedisco
+        cipher_rsa = PKCS1_OAEP.new(RSA.import_key(PubKeyClient_bytes))
+        c_secret = cipher_rsa.encrypt(secret)
+        conn.sendall(c_secret)
+        #aspetto il segreto ricifrato
+        s_secret = conn.recv(2048)
+        #decifro con k_prv del server
+        s_secret = decifratura(s_secret)
+        if s_secret==secret:
+            print("Sono uguali dio")
+
+            msg=b'Puppami la fava'
+            h = HMAC.new(secret, msg, digestmod=SHA256)
+            mac = h.hexdigest()
+            print("Il mac generato è:",mac)
+            conn.sendall(msg)                   #mando il messaggio
+            conn.sendall(bytes(mac,'utf-8'))    #mando il MAC
+            #mando un messaggio di prova
+        '''
+
     else:                                               #altrimenti errore di autenticazione (-1)
         conn.sendall(bytes('-1', 'utf-8'))
+        print("Errore di autenticazione")
 
 
 def signup(username):

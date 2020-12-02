@@ -8,6 +8,7 @@ from Crypto.Cipher import PKCS1_OAEP
 from node import Node
 import time
 import argparse
+from Crypto.Hash import HMAC, SHA256
 
 buffer = ''
 
@@ -29,6 +30,7 @@ def logout(username):    #TODO!
 def login(username):
     esito = -1
     print("sono nella login")
+    print(username)
     socket.sendall(bytes('2'+username, 'utf-8'))
     check = socket.recv(2048)
     check = check.decode('utf-8')
@@ -38,21 +40,56 @@ def login(username):
         return esito
 
     messaggio = socket.recv(2048)
+    print("Messaggio ricevuto:",messaggio)
     f = open(username + '.pem', 'r')      #recupero la mia chiave privata
     private_key = RSA.import_key(f.read())
     f.close()
+    print("Chiave privata prelevata dal file:",private_key)
 
     cipher_rsa = PKCS1_OAEP.new(private_key)
     message = cipher_rsa.decrypt(messaggio)  #decifro il messaggio (random) ricevuto dal server con la mia chiave privata
+
+    print("Messaggio decifrato",message)
 
     f = open('serverPubKey.pem', 'r')
     serverPub_key = RSA.import_key(f.read())            #recupero chiave pubblica del server
     cipher_rsa = PKCS1_OAEP.new(serverPub_key)
     message = cipher_rsa.encrypt(message)               #cifro con chiave pubblica del server e mando
     socket.sendall(message)
+    print("Mandato message")
 
     receved = socket.recv(1024)    #se l'autenticazione è andata a buon fine il server me lo segnala
     receved = receved.decode('utf-8')
+    print("Ricevuto capo:",receved)
+
+    '''
+    #PROVA PER CIFRATURA MESSAGGI CLIENT
+    c_secret = socket.recv(2048)
+    #decifro il segreto
+    cipher_rsa = PKCS1_OAEP.new(private_key)
+    secret = cipher_rsa.decrypt(c_secret)
+
+    print("Ho ricevuto il segreto ed è:",secret)
+    #cifro con chiave pubblica del server e glielo rimando
+    cipher_rsa = PKCS1_OAEP.new(serverPub_key)
+    c_secret = cipher_rsa.encrypt(secret)
+    socket.sendall(c_secret)
+
+    #ho ottenuto il segreto ora ricevo un messaggio di prova
+    msg = socket.recv(2048)
+    mac = socket.recv(2048)
+    mac = mac.decode('utf-8')
+    print("mac ricevuto è:",mac)
+    h = HMAC.new(secret, msg ,digestmod=SHA256)
+    try:
+        h.hexverify(mac) #verifica che il mac è compatibile con msg
+        msg = msg.decode('utf-8')
+        print("Messaggio certificato:", msg)
+    except:
+        print("Messaggio non certificato")
+    
+    '''
+
     if receved == '1':                             #inviando 1 (da vedere se vogliamo cifrare anche questo), altrimenti
         print("LOGIN AVVENUTA CON SUCCESSO")        #qualsiasi cosa mi invia capisco che c'è stato un errore e ritorno errore(-1)
         return receved

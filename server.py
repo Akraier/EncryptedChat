@@ -29,18 +29,21 @@ def logout(username):
 def search_pubKey(username):
     registrati = open('./UtentiRegistrati.txt', 'r')
     riga_file = registrati.readline()
-    if username in registrati.read():
-        while riga_file != '':                                 #scorro il file per vedere se l'username è registrato
-            if riga_file.split(" ")[0] != username:
-                riga_file = registrati.readline()
-                continue
-            break
-            #elif riga_file.split()[0] == username:
-               # break
+    #if username in registrati.read():
+    while riga_file != '':                                 #scorro il file per vedere se l'username è registrato
+        if riga_file.split(" ")[0] != username:
+            riga_file = registrati.readline()
+            continue
         PubKeyClient = '-----BEGIN PUBLIC KEY-----\n'
         for i in range(8):
-            PubKeyClient = PubKeyClient + file_registrati.readline()
+            riga = registrati.readline()
+            PubKeyClient = PubKeyClient + riga
+        registrati.close()
         return PubKeyClient
+    return
+        #elif riga_file.split()[0] == username:
+           # break
+
 
 
 def login(username, indirizzo):

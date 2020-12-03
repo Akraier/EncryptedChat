@@ -92,6 +92,7 @@ def login(username):
 
     if receved == '1':                             #inviando 1 (da vedere se vogliamo cifrare anche questo), altrimenti
         print("LOGIN AVVENUTA CON SUCCESSO")        #qualsiasi cosa mi invia capisco che c'è stato un errore e ritorno errore(-1)
+        socket.sendall(bytes(str(args.port), 'utf-8'))
         return receved
     else:
         return esito

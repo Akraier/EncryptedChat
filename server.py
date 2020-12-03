@@ -41,6 +41,7 @@ def search_pubKey(username):
             PubKeyClient = PubKeyClient + riga
         registrati.close()
         return PubKeyClient
+    registrati.close()
     return
         #elif riga_file.split()[0] == username:
            # break
@@ -76,13 +77,15 @@ def login(username, indirizzo):
 
     if messaggio == bytes(random_string, 'utf-8'):          #se sono uguali autenticazione andata a buon fine, invio 1
         print("Si sono uguali")
+        conn.sendall(bytes('1', 'utf-8'))
+        host_port = conn.recv(1024)
         fd_user = open("./connessi/"+username+".txt", 'w')
         print("Aperto file")
-        fd_user.write(indirizzo)
+        fd_user.write(indirizzo + host_port.decode('utf-8'))
         print("SCritto file")
         fd_user.close()
         print("Chiuso")
-        conn.sendall(bytes('1', 'utf-8'))
+
         print("MANDATO 1!!!!!!!!!!!!!!!!!!!")
 
         '''
@@ -231,8 +234,7 @@ if __name__ == '__main__':
             socket.close()
             print('Got connection from ', addr[0], '(', addr[1], ')')
             ip = bytes(addr[0], 'utf-8')
-            port_host = str(addr[1])
-            connection = " " + ip.decode('utf-8') + " " + port_host
+            connection = " " + ip.decode('utf-8') + " "
             while True:
                 try:
                     data = conn.recv(1024)

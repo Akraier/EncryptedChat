@@ -60,9 +60,9 @@ def login(username):
 
     receved = socket.recv(1024)    #se l'autenticazione è andata a buon fine il server me lo segnala
     receved = receved.decode('utf-8')
-    print("Ricevuto capo:",receved)
+    print("Ricevuto capo:", receved)
 
-    '''
+    ''' 
     #PROVA PER CIFRATURA MESSAGGI CLIENT
     c_secret = socket.recv(2048)
     #decifro il segreto
@@ -213,10 +213,11 @@ if __name__ == '__main__':
                 continue
             else:
                 logged = login(args.username)
+                print(logged)
                 if logged == '1':      #login avvenuta con successo
                     loggato = 1
                     menu = 1
-                elif logged == '-1':
+                elif logged == -1:
                     continue
         elif comando == 3:
             if loggato == 1:
@@ -268,7 +269,9 @@ if __name__ == '__main__':
                     # mi connetto al nodo destinatario con i dati forniti dal server
                     node.connect_with_node(tupla[0], tupla[1])
                     # mantengo aggiornato un dizionario di referenze username:nodo
-                    connected[choice[1]] = node.nodes_outbound[node.outbound_counter - 1]
+                    print(tupla[0], tupla[1])
+                    connected.update({choice[1], node.nodes_outbound[node.outbound_counter - 1]})
+                    #connected[choice[1]] = node.nodes_outbound[node.outbound_counter - 1]
                     receiver = choice[1]
                     continue
                 continue

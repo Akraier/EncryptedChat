@@ -180,6 +180,7 @@ def comunication_request(username):
     registered = open('./UtentiRegistrati.txt', 'r')
     reg_r = registered.read()
     if username in reg_r:
+        #solo se l'utente e' registrato provo ad accedere al file
         file_path = './connessi/' + username + '.txt'
         try:
             online = open(file_path, 'r')
@@ -187,6 +188,7 @@ def comunication_request(username):
             print("File '" + file_path + "' does not exist.")
             return
         ip_port = online.read()
+        print(ip_port)
         #ip_port va mandato tutto al client insieme alla chiave pubblica
         pubKey = search_pubKey(username)
         #pubKey_b = bytes(pubKey)
@@ -246,6 +248,7 @@ if __name__ == '__main__':
                     if command[0][0] == '3':
                         logout(command[0][1:len(command[0])])
                     if command[0] == 'connect':
+                        print('sono nella connect')
                         #command[1] esiste
                         comunication_request(command[1])
                     # conn.sendall(bytes('Thank you for connecting', 'utf-8'))

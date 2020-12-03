@@ -21,12 +21,6 @@ def parse_args():
     arguments = parser.parse_args()
     return arguments
 
-
-
-def logout(username):    #TODO!
-    prova = 1
-    return prova
-
 def login(username):
     esito = -1
     print("sono nella login")
@@ -109,7 +103,7 @@ def connect_to_contact(contact, socket):
             return received  # restituisce la lista [ ip,porta]
         else:
             print('Utente ' + contact + 'offline.\n')
-            return False
+            return '0'
     except:
         print('Errore di comunicazione con-to-cont')
 
@@ -263,14 +257,17 @@ if __name__ == '__main__':
             if (connected == {}) or (choice[1] not in connected):
                 # tentativo di connessione all'utente
                 tupla = connect_to_contact(choice[1], socket)
+                print("TUPLA: ", tupla)
                 # !! POINT: possiamo garantire che i dati ricevuti siano corretti per quell' utente?
                 # 1) trudy non ha manipolato i dati scambiandoli con quelli di qualcun altro
-                if tupla != False:
+                if tupla != '0':
+                    address = tupla.split(" ")
+                    print("IP: ", address[1])
+                    print("PORTA: ", address[2])
                     print('Connected to ' + choice[1])
                     # mi connetto al nodo destinatario con i dati forniti dal server
-                    node.connect_with_node(tupla[0], tupla[1])
+                    node.connect_with_node(address[1], address[2])
                     # mantengo aggiornato un dizionario di referenze username:nodo
-                    print(tupla[0], tupla[1])
                     connected.update({choice[1], node.nodes_outbound[node.outbound_counter - 1]})
                     #connected[choice[1]] = node.nodes_outbound[node.outbound_counter - 1]
                     receiver = choice[1]

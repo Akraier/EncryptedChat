@@ -117,11 +117,17 @@ def node_callback(event, node, connected_node, data):
             f = open(args.username + '.pem', 'r')  # recupero la mia chiave privata
             private_key = RSA.import_key(f.read())
             f.close()
-            print("EEEEEEEEEEEEEEEEEEEEEEEEEE: ", str(data))
+            print("TYPE_DATA: ", type(data))
+            print("DATA: ", data)
+            # received = data.decode('utf-8')
+            # print("RECEIVED: ", received)
+            # to_decrypt = bytes(received, 'utf-8')
+            # print("EEEEEEEEEEEEEEEEEEEEEEEEEE: ", to_decrypt)
+
             cipher_rsa = PKCS1_OAEP.new(private_key)
-            message = cipher_rsa.decrypt(bytes(str(data),'utf-8'))  # decifro il messaggioricevuto dal peer con la mia chiave privata
+            message = cipher_rsa.decrypt(data)  # decifro il messaggioricevuto dal peer con la mia chiave privata
             print("OOOOOOOOOOOOOOOOOOO")
-            buffer = event + message + '\n'
+            buffer = event + message.decode('utf-8') + '\n'
     except Exception as e:
         print(e)
 
@@ -296,7 +302,8 @@ if __name__ == '__main__':
                 str_tosend = str(args.username) + ': ' + msg + ' [' + tstamp + ']'
 
                 #CIFRATURA
-                chiper_rsa = PKCS1_OAEP.new(RSA.import_key(pubKey_connected)) #valutare se trasformare in bytes
+                key_crypt = RSA.import_key(pubKey_connected)
+                chiper_rsa = PKCS1_OAEP.new(key_crypt) #valutare se trasformare in bytes
                 str_encrypted = chiper_rsa.encrypt(bytes(str_tosend, 'utf-8'))
                 #print("str_tosend: ", str_tosend)
                 #print("coiche[0]: ", choice[0])

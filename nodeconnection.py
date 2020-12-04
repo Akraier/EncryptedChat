@@ -139,6 +139,7 @@ class NodeConnection(threading.Thread):
 
                 while eot_pos > 0:
                     packet = buffer[:eot_pos]
+                    #print("PACKET: ", str(packet))
                     buffer = buffer[eot_pos + 1:]
 
                     self.main_node.message_count_recv += 1

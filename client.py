@@ -26,7 +26,7 @@ def login(username):
     print("sono nella login")
     print(username)
     socket.sendall(bytes('2'+username, 'utf-8'))
-    check = socket.recv(2048)
+    check = socket.recv(1)
     check = check.decode('utf-8')
     print("CHECK: ", check)
     if check == '-1':  #in caso di utente non registrato il server risponde con codice -1
@@ -110,10 +110,18 @@ def connect_to_contact(contact, socket):
 
 def node_callback(event, node, connected_node, data):
     try:
-        if event != 'message received': # node_request_to_stop does not have any connected_node, while it is the main_node that is stopping!
+        if str(event) != 'message received ': # node_request_to_stop does not have any connected_node, while it is the main_node that is stopping!
             print('{}: {}'.format(event, data))
-        elif event == 'message received':
-            buffer = event + data + '\n'
+        elif str(event) == 'message received ':
+            print("AAAAAAAAAAAAAAAAAAAAAAAA")
+            f = open(args.username + '.pem', 'r')  # recupero la mia chiave privata
+            private_key = RSA.import_key(f.read())
+            f.close()
+            print("EEEEEEEEEEEEEEEEEEEEEEEEEE: ", str(data))
+            cipher_rsa = PKCS1_OAEP.new(private_key)
+            message = cipher_rsa.decrypt(bytes(str(data),'utf-8'))  # decifro il messaggioricevuto dal peer con la mia chiave privata
+            print("OOOOOOOOOOOOOOOOOOO")
+            buffer = event + message + '\n'
     except Exception as e:
         print(e)
 
@@ -272,6 +280,7 @@ if __name__ == '__main__':
                     connected.update({choice[1]:node.nodes_outbound[node.outbound_counter - 1]})
                     print("CONNECTED: ", connected)
                     pubKey_connected = tupla.split("***")[1]
+                    print("pubKEY: ", pubKey_connected)
                     #connected[choice[1]] = node.nodes_outbound[node.outbound_counter - 1]
                     receiver = choice[1]
                     continue
@@ -287,8 +296,8 @@ if __name__ == '__main__':
                 str_tosend = str(args.username) + ': ' + msg + ' [' + tstamp + ']'
 
                 #CIFRATURA
-                chiper_rsa = PKCS1_OAEP.new(RSA.import_key(pubKey_connected))
-                str_encrypted = chiper_rsa.encrypt(bytes(str_tosend,'utf-8'))
+                chiper_rsa = PKCS1_OAEP.new(RSA.import_key(pubKey_connected)) #valutare se trasformare in bytes
+                str_encrypted = chiper_rsa.encrypt(bytes(str_tosend, 'utf-8'))
                 #print("str_tosend: ", str_tosend)
                 #print("coiche[0]: ", choice[0])
                 node.send_to_node(connected[receiver], str_encrypted)

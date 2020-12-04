@@ -141,7 +141,7 @@ class Node(threading.Thread):
         if n in self.nodes_inbound or n in self.nodes_outbound:
             try:
                 n.send(data)
-                self.msg_sent(n, data)
+                #self.msg_sent(n, data)
             except Exception as e:
                 self.debug_print("Node send_to_node: Error while sending data to the node (" + str(e) + ")")
         else:

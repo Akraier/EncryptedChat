@@ -163,7 +163,7 @@ def signup(username):
 
     print("Stringa decifrata :", stringa_decifrata)
 
-    # invio la stringa cifrata al server
+    # invio la stringa decifrata al server
     socket.sendall(stringa_decifrata)
 
     # aspetto l'ok
@@ -193,6 +193,7 @@ if __name__ == '__main__':
     socket = sk.socket(sk.AF_INET, sk.SOCK_STREAM)
     socket.connect((host, port))
 
+    loggato = 0
     menu = 0
     print("**************WELCOME TO ENCRYPTED CHAT****************\n")
 
@@ -214,7 +215,7 @@ if __name__ == '__main__':
                     menu = 1
                 elif logged == -1:
                     continue
-        elif comando == 3:
+        elif comando == '3':
             if loggato == 1:
                 socket.sendall(bytes('3 '+args.username, 'utf-8'))
             socket.close()
@@ -265,12 +266,12 @@ if __name__ == '__main__':
                     print("IP: ", address[1])
                     print("PORTA: ", address[2])
                     print('Connected to ' + choice[1])
-                    user_connected = choice[1]
                     # mi connetto al nodo destinatario con i dati forniti dal server
                     node.connect_with_node(str(address[1]), int(address[2]))
                     # mantengo aggiornato un dizionario di referenze username:nodo
                     connected.update({choice[1]:node.nodes_outbound[node.outbound_counter - 1]})
                     print("CONNECTED: ", connected)
+                    pubKey_connected = tupla.split("***")[1]
                     #connected[choice[1]] = node.nodes_outbound[node.outbound_counter - 1]
                     receiver = choice[1]
                     continue
@@ -284,9 +285,13 @@ if __name__ == '__main__':
                 # invia il messaggio
                 tstamp = time.strftime('%H:%M:%S', time.localtime())
                 str_tosend = str(args.username) + ': ' + msg + ' [' + tstamp + ']'
-                print("str_tosend: ", str_tosend)
-                print("coiche[0]: ", choice[0])
-                node.send_to_node(connected[user_connected], str_tosend)
+
+                #CIFRATURA
+                chiper_rsa = PKCS1_OAEP.new(RSA.import_key(pubKey_connected))
+                str_encrypted = chiper_rsa.encrypt(bytes(str_tosend,'utf-8'))
+                #print("str_tosend: ", str_tosend)
+                #print("coiche[0]: ", choice[0])
+                node.send_to_node(connected[receiver], str_encrypted)
                 continue
             else:
                 print("Specified user is not connected, please connect first to the user with 'connect' command\n")

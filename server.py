@@ -196,7 +196,7 @@ def comunication_request(username):
         pubKey = search_pubKey(username)
         #pubKey_b = bytes(pubKey)
         #cipher_rsa = PKCS1_OAEP.new(RSA.import_key(pubKey_b))
-        to_send = ip_port + ' ' + pubKey
+        to_send = ip_port + ' ***' + pubKey + '***'
         conn.sendall(bytes(to_send, "utf-8"))
 
 if __name__ == '__main__':

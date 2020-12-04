@@ -265,10 +265,12 @@ if __name__ == '__main__':
                     print("IP: ", address[1])
                     print("PORTA: ", address[2])
                     print('Connected to ' + choice[1])
+                    user_connected = choice[1]
                     # mi connetto al nodo destinatario con i dati forniti dal server
-                    node.connect_with_node(address[1], address[2])
+                    node.connect_with_node(str(address[1]), int(address[2]))
                     # mantengo aggiornato un dizionario di referenze username:nodo
-                    connected.update({choice[1], node.nodes_outbound[node.outbound_counter - 1]})
+                    connected.update({choice[1]:node.nodes_outbound[node.outbound_counter - 1]})
+                    print("CONNECTED: ", connected)
                     #connected[choice[1]] = node.nodes_outbound[node.outbound_counter - 1]
                     receiver = choice[1]
                     continue
@@ -281,8 +283,10 @@ if __name__ == '__main__':
             if receiver in connected:
                 # invia il messaggio
                 tstamp = time.strftime('%H:%M:%S', time.localtime())
-                str = args.username + ': ' + msg + ' [' + tstamp + ']'
-                node.send_to_node(connected[choice[1]], str)
+                str_tosend = str(args.username) + ': ' + msg + ' [' + tstamp + ']'
+                print("str_tosend: ", str_tosend)
+                print("coiche[0]: ", choice[0])
+                node.send_to_node(connected[user_connected], str_tosend)
                 continue
             else:
                 print("Specified user is not connected, please connect first to the user with 'connect' command\n")

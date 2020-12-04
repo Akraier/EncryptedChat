@@ -21,6 +21,15 @@ def decifratura(mex):
     mex = cipher_rsa.decrypt(mex)
     return mex
 
+def genera_mac(secret, buffer, kp_receiver):
+
+    print("Il segreto è:", secret)
+    h = HMAC.new(secret, bytes(buffer,'utf-8'), digestmod=SHA256)
+    mac = h.hexdigest()
+    print("Il mac generato è:", mac)
+
+    return mac
+
 def logout(username):
     file_path = "./connessi/" + username + ".txt"
     os.remove(file_path)
@@ -118,7 +127,7 @@ def login(username, indirizzo):
         print("Errore di autenticazione")
 
 
-def signup(username):
+def signup(username, buffer):
     print("Sono nella signup")
     #riceve chiave pubblica
     key_public_client_PEM = conn.recv(2048)
@@ -143,13 +152,18 @@ def signup(username):
 
     #print("Stringa inviata")
     #riceve stringa decifrata con key private del client
-    stringa_decifrata = conn.recv(2048)
-    stringa_decifrata = stringa_decifrata.decode('utf-8')
+    #stringa_decifrata = conn.recv(2048)
+    #stringa_decifrata = stringa_decifrata.decode('utf-8')
 
     #print("Stringa decriptata dal client: ",stringa_decifrata)
     #print("Stringa generata inizialmente: ",stringa_casuale)
 
-    if stringa_decifrata == stringa_casuale:
+    buffer_mac = buffer + key_public_client_PEM.decode('utf-8') + stringa_casuale
+    mac = genera_mac(bytes_stringa_casuale, buffer_mac, key_public_client_PEM)
+
+    mac_client = conn.recv(2048)
+    if mac == mac_client.decode('utf-8'):
+        conn.sendall(bytes(mac, 'utf-8'))
         #print("Stringhe uguali")
         #memorizzo username e chiave pubblica del nuovo utente
         f = open('UtentiRegistrati.txt', 'a')
@@ -170,13 +184,8 @@ def signup(username):
         print("Chiave in formato bytes:", chiave_bytes)
 
         f.close()
-
-        conn.sendall(bytes('0', 'utf-8'))
-        #print("Comunicazione al server effettuata")
     else:
-        conn.sendall(bytes('1', 'utf-8'))
-        print("Brutta notizia al server inviata")
-
+        conn.sendall(b'errore')
 
 def comunication_request(username):
     #devo cercare l'username nel file degli utenti
@@ -240,11 +249,11 @@ if __name__ == '__main__':
                     data = conn.recv(1024)
                     if not data:
                         conn.close()
-                    r = data.decode("utf-8")
-                    command = r.split()
+                    buffer = data.decode("utf-8")
+                    command = buffer.split()
                     print(data.decode("utf-8"))
                     if command[0][0] == '1':
-                        signup(command[0][1:len(command[0])])
+                        signup(command[0][1:len(command[0])],buffer)
                     if command[0][0] == '2':
                         login(command[0][1:len(command[0])], connection)
                     if command[0][0] == '3':

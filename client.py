@@ -21,6 +21,14 @@ def parse_args():
     arguments = parser.parse_args()
     return arguments
 
+def genera_mac(secret, buff_mac):
+    print("Il segreto è:", secret)
+    h = HMAC.new(secret, bytes(buff_mac,'utf-8'), digestmod=SHA256)
+    mac = h.hexdigest()
+    print("Il mac generato è:", mac)
+
+    return mac
+
 def login(username):
     esito = -1
     print("sono nella login")
@@ -92,6 +100,7 @@ def login(username):
         return esito
 
 
+
 def connect_to_contact(contact, socket):
     try:
         '''Chiedo al server informazioni sull utente contact'''
@@ -110,24 +119,12 @@ def connect_to_contact(contact, socket):
 
 def node_callback(event, node, connected_node, data):
     try:
-        if str(event) != 'message received ': # node_request_to_stop does not have any connected_node, while it is the main_node that is stopping!
+        event = str(event)
+        if event != 'message received': # node_request_to_stop does not have any connected_node, while it is the main_node that is stopping!
             print('{}: {}'.format(event, data))
-        elif str(event) == 'message received ':
-            print("AAAAAAAAAAAAAAAAAAAAAAAA")
-            f = open(args.username + '.pem', 'r')  # recupero la mia chiave privata
-            private_key = RSA.import_key(f.read())
-            f.close()
-            print("TYPE_DATA: ", type(data))
-            print("DATA: ", data)
-            # received = data.decode('utf-8')
-            # print("RECEIVED: ", received)
-            # to_decrypt = bytes(received, 'utf-8')
-            # print("EEEEEEEEEEEEEEEEEEEEEEEEEE: ", to_decrypt)
-
-            cipher_rsa = PKCS1_OAEP.new(private_key)
-            message = cipher_rsa.decrypt(data)  # decifro il messaggioricevuto dal peer con la mia chiave privata
-            print("OOOOOOOOOOOOOOOOOOO")
-            buffer = event + message.decode('utf-8') + '\n'
+        elif event == 'message received ':
+            print("sono nell elif")
+            buffer = event + data + '\n'
     except Exception as e:
         print(e)
 
@@ -175,22 +172,23 @@ def signup(username):
     cipher_rsa = PKCS1_OAEP.new(keys)
     stringa_decifrata = cipher_rsa.decrypt(stringa)
 
-    print("Stringa decifrata :", stringa_decifrata)
+    print("Stringa segreta decifrata :", stringa_decifrata)
 
     # invio la stringa decifrata al server
-    socket.sendall(stringa_decifrata)
+    #socket.sendall(stringa_decifrata)
 
-    # aspetto l'ok
-    esito = socket.recv(1024)
-    esito = esito.decode('utf-8')
-    print("L'esito è: "+esito)
+    buff_mac = '1' + username + public_key_send.decode('utf-8') + stringa_decifrata.decode('utf-8')
+    mac = genera_mac(stringa_decifrata,buff_mac)
 
-    if esito == '0':
-        print("Registrazione avvenuta con successo")
-        return
+    socket.sendall(bytes(mac,'utf-8'))  # mando il MAC
+
+    risposta = socket.recv(2048)
+
+    if risposta.decode('utf-8') == mac:
+        print("Registrazione effettuata con successo")
+
     else:
-        print("Si è verificato un errore")
-
+        print("registraazione rifiutata")
 
 def menu_():
     print('Use the following commands to interact:\n')
@@ -286,7 +284,6 @@ if __name__ == '__main__':
                     connected.update({choice[1]:node.nodes_outbound[node.outbound_counter - 1]})
                     print("CONNECTED: ", connected)
                     pubKey_connected = tupla.split("***")[1]
-                    print("pubKEY: ", pubKey_connected)
                     #connected[choice[1]] = node.nodes_outbound[node.outbound_counter - 1]
                     receiver = choice[1]
                     continue
@@ -302,9 +299,8 @@ if __name__ == '__main__':
                 str_tosend = str(args.username) + ': ' + msg + ' [' + tstamp + ']'
 
                 #CIFRATURA
-                key_crypt = RSA.import_key(pubKey_connected)
-                chiper_rsa = PKCS1_OAEP.new(key_crypt) #valutare se trasformare in bytes
-                str_encrypted = chiper_rsa.encrypt(bytes(str_tosend, 'utf-8'))
+                chiper_rsa = PKCS1_OAEP.new(RSA.import_key(pubKey_connected))
+                str_encrypted = chiper_rsa.encrypt(bytes(str_tosend,'utf-8'))
                 #print("str_tosend: ", str_tosend)
                 #print("coiche[0]: ", choice[0])
                 node.send_to_node(connected[receiver], str_encrypted)

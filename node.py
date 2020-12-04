@@ -164,19 +164,25 @@ class Node(threading.Thread):
                 return True
 
         try:
+
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
             self.debug_print("connecting to %s port %s" % (host, port))
             sock.connect((host, port))
 
             # Basic information exchange (not secure) of the id's of the nodes!
             sock.send(self.id.encode('utf-8'))  # Send my id to the connected node!
+
             connected_node_id = sock.recv(4096).decode('utf-8')  # When a node is connected, it sends it id!
+
             thread_client = self.create_new_connection(sock, connected_node_id, host, port)
             thread_client.start()
 
 
             self.nodes_outbound.append(thread_client)
+            print("porco1")
             self.outbound_counter = self.outbound_counter + 1
+            print("porco2")
             self.outbound_node_connected(thread_client)
 
         except Exception as e:

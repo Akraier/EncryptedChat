@@ -21,13 +21,12 @@ def decifratura(mex):
     mex = cipher_rsa.decrypt(mex)
     return mex
 
-def genera_mac(secret, buffer, kp_receiver):
+def genera_mac(secret, buffer):
 
     print("Il segreto è:", secret)
     h = HMAC.new(secret, bytes(buffer,'utf-8'), digestmod=SHA256)
     mac = h.hexdigest()
     print("Il mac generato è:", mac)
-
     return mac
 
 def logout(username):
@@ -62,17 +61,17 @@ def login(username, indirizzo):
     file_registrati = open('./UtentiRegistrati.txt', 'r')
     riga_file = file_registrati.readline()
 
-    random_string = get_random_string(16)               #genero stringa random per autenticazione del client
-    print("stringa random: ", random_string)
+    random_string = get_random_string(64) #genero stringa random per autenticazione del client
+    secret = bytes(random_string,'utf-8')
+    #print("stringa random: ", random_string)
     PubKey = search_pubKey(username)#prendo la chiave pubblica del client dal file per cifrare la stringa
     PubKeyClient_bytes = bytes(PubKey, 'utf-8')
     print('chiave pubblica: ', PubKey)
     cipher_rsa = PKCS1_OAEP.new(RSA.import_key(PubKeyClient_bytes))
-    message = cipher_rsa.encrypt(bytes(random_string,'utf-8'))         # cifro con chiave pubblica del client e mando
-    print('stringa random cifrata: ', message)
+    message = cipher_rsa.encrypt(secret)         # cifro con chiave pubblica del client e mando
+    #print('stringa random cifrata: ', message)
     conn.sendall(bytes('1', 'utf-8'))
     conn.sendall(message)
-
 
     if riga_file == '':
         print("NON TROVATO!\n")
@@ -84,48 +83,38 @@ def login(username, indirizzo):
     messaggio = decifratura(ricevuto)
     print("stringa random dopo decifratura: ", messaggio)
 
+    host_port = conn.recv(5)
+    print("host port:", host_port.decode('utf-8'))
     if messaggio == bytes(random_string, 'utf-8'):          #se sono uguali autenticazione andata a buon fine, invio 1
         print("Si sono uguali")
-        conn.sendall(bytes('1', 'utf-8'))
-        host_port = conn.recv(1024)
+        #conn.sendall(bytes('1', 'utf-8'))
         fd_user = open("./connessi/"+username+".txt", 'w')
         print("Aperto file")
         fd_user.write(indirizzo + host_port.decode('utf-8'))
         print("SCritto file")
         fd_user.close()
-        print("Chiuso")
+        #print("Chiuso")
 
-        print("MANDATO 1!!!!!!!!!!!!!!!!!!!")
+        #print("MANDATO 1!!!!!!!!!!!!!!!!!!!")
 
-        '''
-        #PROVA MAC LATO SERVER
-        secret = get_random_string(16)
-        secret = bytes(secret, 'utf-8')
-        print("Il segreto generato è:",secret)
-        #codifico il segreto e lo spedisco
-        cipher_rsa = PKCS1_OAEP.new(RSA.import_key(PubKeyClient_bytes))
-        c_secret = cipher_rsa.encrypt(secret)
-        conn.sendall(c_secret)
-        #aspetto il segreto ricifrato
-        s_secret = conn.recv(2048)
-        #decifro con k_prv del server
-        s_secret = decifratura(s_secret)
-        if s_secret==secret:
-            print("Sono uguali dio")
+        mac_client = conn.recv(64)
+        print("mac client ricevuto:", mac_client)
 
-            msg=b'Puppami la fava'
-            h = HMAC.new(secret, msg, digestmod=SHA256)
-            mac = h.hexdigest()
-            print("Il mac generato è:",mac)
-            conn.sendall(msg)                   #mando il messaggio
-            conn.sendall(bytes(mac,'utf-8'))    #mando il MAC
-            #mando un messaggio di prova
-        '''
+        print("Pre riempimento")
+        buffer_login = '2' + username + random_string
+        print("buffer login riempito")
+        mac = genera_mac(secret, buffer_login)
+        print("mac generato")
 
-    else:                                               #altrimenti errore di autenticazione (-1)
-        conn.sendall(bytes('-1', 'utf-8'))
-        print("Errore di autenticazione")
-
+        if mac == mac_client.decode('utf-8'):
+            conn.sendall(bytes(mac, 'utf-8'))
+            print("Utente loggato con successo")
+        else:
+            conn.sendall(b'errore in fase di login, mac diversi')
+            print("Tentativo di login rifiutato")
+    else:
+        conn.sendall(b'errore in fase di login, messaggio errato')
+        print("Tentativo di login rifiutato")
 
 def signup(username, buffer):
     print("Sono nella signup")
@@ -139,7 +128,7 @@ def signup(username, buffer):
     key_public_client = RSA.import_key(key_public_client_PEM) #Recupero la chiave dal formato PEM
     #print("Questa è la chiave:",key_public_client) #in formato RsaKey
     #genera stringa casuale
-    stringa_casuale = get_random_string(16)
+    stringa_casuale = get_random_string(64)
     bytes_stringa_casuale = bytes(stringa_casuale, 'utf-8')
     #print("Stringa generata: ",bytes_stringa_casuale)
 
@@ -158,10 +147,11 @@ def signup(username, buffer):
     #print("Stringa decriptata dal client: ",stringa_decifrata)
     #print("Stringa generata inizialmente: ",stringa_casuale)
 
-    buffer_mac = buffer + key_public_client_PEM.decode('utf-8') + stringa_casuale
-    mac = genera_mac(bytes_stringa_casuale, buffer_mac, key_public_client_PEM)
-
     mac_client = conn.recv(2048)
+
+    buffer_mac = buffer + key_public_client_PEM.decode('utf-8') + stringa_casuale
+    mac = genera_mac(bytes_stringa_casuale, buffer_mac)
+
     if mac == mac_client.decode('utf-8'):
         conn.sendall(bytes(mac, 'utf-8'))
         #print("Stringhe uguali")

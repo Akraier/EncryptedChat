@@ -36,16 +36,16 @@ def login(username):
     check = socket.recv(1)
     check = check.decode('utf-8')
     print("CHECK: ", check)
-    if check == '-1':  #in caso di utente non registrato il server risponde con codice -1
+    if check != '1':  #in caso di utente non registrato il server risponde con codice -1
         print("Please")
         return esito
 
     messaggio_ricevuto = socket.recv(1024)
-    print("Messaggio ricevuto:",messaggio_ricevuto)
+    print("Messaggio ricevuto:", messaggio_ricevuto)
     f = open(username + '.pem', 'r')      #recupero la mia chiave privata
     private_key = RSA.import_key(f.read())
     f.close()
-    print("Chiave privata prelevata dal file:",private_key)
+    print("Chiave privata prelevata dal file:", private_key)
 
     cipher_rsa = PKCS1_OAEP.new(private_key)
     secret = cipher_rsa.decrypt(messaggio_ricevuto)  #decifro il messaggio (random) ricevuto dal server con la mia chiave privata
@@ -57,31 +57,31 @@ def login(username):
     cipher_rsa = PKCS1_OAEP.new(serverPub_key)
     message = cipher_rsa.encrypt(secret)               #cifro con chiave pubblica del server e mando
     socket.sendall(message)
-    print("Mandato message:",message)
+    print("Mandato message:", message)
 
-    #receved = socket.recv(1024)    #se l'autenticazione è andata a buon fine il server me lo segnala
-    #receved = receved.decode('utf-8')
-    #print("Ricevuto capo:", receved)
-
- #   if receved == '1':                             #inviando 1 (da vedere se vogliamo cifrare anche questo), altrimenti
-  #      print("LOGIN AVVENUTA CON SUCCESSO")        #qualsiasi cosa mi invia capisco che c'è stato un errore e ritorno errore(-1)
     socket.sendall(bytes(str(args.port), 'utf-8'))
     print("Ho Inviato la porta:", args.port)
     print("La porta aveva dimensione:", len(bytes(str(args.port), 'utf-8')))
     print("pre riempimento")
-    buffer_login = '2' + username + secret.decode('utf-8')
-    print("buffer_login riempito")
-    mac = genera_mac(secret, buffer_login)
-    print("mac generato: ",mac)
-    print(len(bytes(mac, 'utf-8')))
-    socket.sendall(bytes(mac, 'utf-8'))
-    print("mac inviato")
-    risposta = socket.recv(2048)
-    print("risposta ricevuta")
-    if mac == risposta.decode('utf8'):
-        print("Login effettuato con successo")
+    secret_ok = socket.recv(1)
+    print("Check segreto:",secret_ok)
+    if secret_ok.decode('utf-8') == '1':
+        buffer_login = '2' + username + '1' + secret.decode('utf-8') + '1'
+        print("buffer_login riempito:", buffer_login)
+        mac = genera_mac(secret, buffer_login)
+        print("mac generato: ", mac)
+        print(len(bytes(mac, 'utf-8')))
+        socket.sendall(bytes(mac, 'utf-8'))
+        print("mac inviato")
+        risposta = socket.recv(2048)
+        print("risposta ricevuta")
+        if mac == risposta.decode('utf8'):
+            print("Login effettuato con successo")
+        else:
+            print("Errore in fase di login, riprovare")
     else:
-        print("Errore in fase di login, riprovare")
+        print("Stringa segreta non ricevuta correttamente")
+        return
 
 def connect_to_contact(contact, socket):
     try:

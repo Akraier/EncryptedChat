@@ -61,47 +61,45 @@ def login(username, indirizzo):
     file_registrati = open('./UtentiRegistrati.txt', 'r')
     riga_file = file_registrati.readline()
 
-    random_string = get_random_string(64) #genero stringa random per autenticazione del client
-    secret = bytes(random_string,'utf-8')
-    #print("stringa random: ", random_string)
-    PubKey = search_pubKey(username)#prendo la chiave pubblica del client dal file per cifrare la stringa
-    PubKeyClient_bytes = bytes(PubKey, 'utf-8')
-    print('chiave pubblica: ', PubKey)
-    cipher_rsa = PKCS1_OAEP.new(RSA.import_key(PubKeyClient_bytes))
-    message = cipher_rsa.encrypt(secret)         # cifro con chiave pubblica del client e mando
-    #print('stringa random cifrata: ', message)
-    conn.sendall(bytes('1', 'utf-8'))
-    conn.sendall(message)
+    if riga_file != '':
+        random_string = get_random_string(64) #genero stringa random per autenticazione del client
+        secret = bytes(random_string,'utf-8')
+        #print("stringa random: ", random_string)
+        PubKey = search_pubKey(username)#prendo la chiave pubblica del client dal file per cifrare la stringa
+        PubKeyClient_bytes = bytes(PubKey, 'utf-8')
+        print('chiave pubblica: ', PubKey)
+        cipher_rsa = PKCS1_OAEP.new(RSA.import_key(PubKeyClient_bytes))
+        message = cipher_rsa.encrypt(secret)         # cifro con chiave pubblica del client e mando
+        #print('stringa random cifrata: ', message)
+        conn.sendall(bytes('1', 'utf-8'))
+        conn.sendall(message)
 
-    if riga_file == '':
+    elif riga_file == '':
         print("NON TROVATO!\n")
         conn.sendall(bytes('-1', 'utf-8'))              #caso di utente non registrato, restituisco errore
         return
 
-    ricevuto = conn.recv(1024)                            # ricevo stringa random cifrata dal client
+    ricevuto = conn.recv(1024)                            #ricevo stringa random cifrata dal client
     print("RICEVUTO: ", ricevuto)
     messaggio = decifratura(ricevuto)
     print("stringa random dopo decifratura: ", messaggio)
 
-    host_port = conn.recv(5)
+    host_port = conn.recv(1024)
     print("host port:", host_port.decode('utf-8'))
     if messaggio == bytes(random_string, 'utf-8'):          #se sono uguali autenticazione andata a buon fine, invio 1
         print("Si sono uguali")
-        #conn.sendall(bytes('1', 'utf-8'))
+        conn.sendall(bytes('1', 'utf-8'))
         fd_user = open("./connessi/"+username+".txt", 'w')
         print("Aperto file")
         fd_user.write(indirizzo + host_port.decode('utf-8'))
         print("SCritto file")
         fd_user.close()
-        #print("Chiuso")
-
-        #print("MANDATO 1!!!!!!!!!!!!!!!!!!!")
 
         mac_client = conn.recv(64)
         print("mac client ricevuto:", mac_client)
 
         print("Pre riempimento")
-        buffer_login = '2' + username + random_string
+        buffer_login = '2' + username + '1' + random_string + '1'
         print("buffer login riempito")
         mac = genera_mac(secret, buffer_login)
         print("mac generato")
@@ -110,7 +108,7 @@ def login(username, indirizzo):
             conn.sendall(bytes(mac, 'utf-8'))
             print("Utente loggato con successo")
         else:
-            conn.sendall(b'errore in fase di login, mac diversi')
+            conn.sendall(b'0')
             print("Tentativo di login rifiutato")
     else:
         conn.sendall(b'errore in fase di login, messaggio errato')

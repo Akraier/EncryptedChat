@@ -21,11 +21,12 @@ def parse_args():
     arguments = parser.parse_args()
     return arguments
 
-def genera_mac(secret, buff_mac):
+def genera_mac(secret_, buff_mac):
     print("Il segreto è:", secret)
-    h = HMAC.new(secret, bytes(buff_mac,'utf-8'), digestmod=SHA256)
+    h = HMAC.new(secret_, bytes(buff_mac,'utf-8'), digestmod=SHA256)
     mac = h.hexdigest()
     print("Il mac generato è:", mac)
+
     return mac
 
 def login(username):
@@ -36,19 +37,19 @@ def login(username):
     check = socket.recv(1)
     check = check.decode('utf-8')
     print("CHECK: ", check)
-    if check != '1':  #in caso di utente non registrato il server risponde con codice -1
+    if check == '-1':  #in caso di utente non registrato il server risponde con codice -1
         print("Please")
         return esito
 
-    messaggio_ricevuto = socket.recv(1024)
-    print("Messaggio ricevuto:", messaggio_ricevuto)
+    messaggio = socket.recv(2048)
+    print("Messaggio ricevuto:",messaggio)
     f = open(username + '.pem', 'r')      #recupero la mia chiave privata
     private_key = RSA.import_key(f.read())
     f.close()
     print("Chiave privata prelevata dal file:", private_key)
 
     cipher_rsa = PKCS1_OAEP.new(private_key)
-    secret = cipher_rsa.decrypt(messaggio_ricevuto)  #decifro il messaggio (random) ricevuto dal server con la mia chiave privata
+    secret = cipher_rsa.decrypt(messaggio)  #decifro il messaggio (random) ricevuto dal server con la mia chiave privata
 
     print("Messaggio decifrato", secret)
 
@@ -90,7 +91,10 @@ def connect_to_contact(contact, socket):
         socket.sendall(bytes(to_send, 'utf-8'))
         rcv = socket.recv(1024)
         received = rcv.decode("utf-8")
-        if received != 'offline':
+        rec_split = received.split()
+        #rec_split[0] messaggio rec_split[1] mac
+        mac_ = genera_mac(secret, rec_split[0] + ' connect ' + contact)
+        if (rec_split[0] != 'offline') and (mac_ == rec_split[1]):
             return received  # restituisce la lista [ ip,porta]
         else:
             print('Utente ' + contact + 'offline.\n')
@@ -101,12 +105,23 @@ def connect_to_contact(contact, socket):
 
 def node_callback(event, node, connected_node, data):
     try:
-        event = str(event)
-        if event != 'message received': # node_request_to_stop does not have any connected_node, while it is the main_node that is stopping!
+        if str(event) != 'message received ': # node_request_to_stop does not have any connected_node, while it is the main_node that is stopping!
             print('{}: {}'.format(event, data))
-        elif event == 'message received ':
-            print("sono nell elif")
-            buffer = event + data + '\n'
+        elif str(event) == 'message received ':
+            f = open(args.username + '.pem', 'r')  # recupero la mia chiave privata
+            private_key = RSA.import_key(f.read())
+            f.close()
+            to_decrypt = data[:len(data)-1]
+            cipher_rsa = PKCS1_OAEP.new(private_key)
+            message = cipher_rsa.decrypt(to_decrypt)  # decifro il messaggioricevuto dal peer con la mia chiave privata
+            print()
+            msg = message.decode('utf-8')
+            print(msg + '\n')
+            splitted = msg.split()
+            if (splitted[1] == 'disconnected.') and (splitted[0] in connected):
+                connected.pop(splitted[0])
+                receiver = ''
+            print(args.username + '>>' + receiver + ':')
     except Exception as e:
         print(e)
 
@@ -125,20 +140,6 @@ def signup(username):
     public_key = keys.publickey() # generazione chiave pubblica
     public_key_send = public_key.export_key()
     #public_key_send = public_key_send.decode('utf-8')
-
-    # salvataggio chiave pubblica lato client ?
-
-    #PROVE, ESEMPIO FUNZIONANTE DI CRIPTAZIONE E DECIFRAZIONE
-   # mex = 'Ciao prova'
-   # mex=bytes(mex,'utf-8')
-   # encryptor = PKCS1_OAEP.new(public_key)  # PROVA
-   # mex_cifrato = encryptor.encrypt(mex)  # PROVA
-   # print("Messaggio cifrato: ",mex_cifrato)
-
-   # decryptor = PKCS1_OAEP.new(keys)
-   # mex_decifrato = decryptor.decrypt(mex_cifrato)
-   # print("Ora l'ho decifrato: ",mex_decifrato)
-
 
     # spedisco al server la chiave pubblica
     #socket.sendall(bytes(public_key_send, 'utf-8')) #GIUSTO
@@ -170,7 +171,7 @@ def signup(username):
         print("Registrazione effettuata con successo")
 
     else:
-        print("Registrazione rifiutata")
+        print("registraazione rifiutata")
 
 def menu_():
     print('Use the following commands to interact:\n')
@@ -180,6 +181,9 @@ def menu_():
     print("-'end' close all the connection with this peer, end the program.\n")
     print("-'menu' review following commands. \n")
 
+connected = {}
+receiver = ''
+secret = ''
 if __name__ == '__main__':
     args = parse_args()
     host = sk.gethostname()
@@ -216,61 +220,50 @@ if __name__ == '__main__':
             exit(1)
         else:
             print('Please, use one of the given command')
-    '''
-    while menu == 1:
-        comando = input("1--> connect to another host\n"
-                        "2--> logout\n"
-                        "3--> quit\n"
-                        ">>")
-        if comando == 1:
-            prova = 1        #da togliere
-            #connect_to_contact()
-        elif comando == 2:
-            menu = 0
-            logout(args.username)
-        else:
-            logout(args.username)
-            socket.close()
-            exit()
-    '''
+
     node = Node(args.ip, args.port, node_callback)
     node.start()
     connected = {}      #dizionario dei peer connessi
     msg = ''
-    receiver = ''
+
     menu_()
     while 1:
         #>> connect username mi connette all'utente username e i messaggi successivi vengono inviati a lui
         # finche' non viene eseguita una connect username2
-
-        if buffer != '':
-            print(buffer)
-            buffer = ''
         msg = input(args.username + '>>' + receiver + ':')
         choice = msg.split()
         if (choice[0] == 'connect') and (choice[1] != []):
             if (connected == {}) or (choice[1] not in connected):
                 # tentativo di connessione all'utente
                 tupla = connect_to_contact(choice[1], socket)
-                print("TUPLA: ", tupla)
                 # !! POINT: possiamo garantire che i dati ricevuti siano corretti per quell' utente?
                 # 1) trudy non ha manipolato i dati scambiandoli con quelli di qualcun altro
                 if tupla != '0':
                     address = tupla.split(" ")
-                    print("IP: ", address[1])
-                    print("PORTA: ", address[2])
-                    print('Connected to ' + choice[1])
                     # mi connetto al nodo destinatario con i dati forniti dal server
                     node.connect_with_node(str(address[1]), int(address[2]))
                     # mantengo aggiornato un dizionario di referenze username:nodo
-                    connected.update({choice[1]:node.nodes_outbound[node.outbound_counter - 1]})
-                    print("CONNECTED: ", connected)
-                    pubKey_connected = tupla.split("***")[1]
+                    values = [node.nodes_outbound[node.outbound_counter - 1], tupla.split("***")[1]]
+                    connected.update({choice[1] : values})
                     #connected[choice[1]] = node.nodes_outbound[node.outbound_counter - 1]
                     receiver = choice[1]
                     continue
                 continue
-
+        elif choice[0] == 'end':
+            # chiudere tutte le connessioni e terminare il client
+            for n in connected:
+                print(n)
+                key = RSA.import_key(connected[n][1])
+                chiper = PKCS1_OAEP.new(key)
+                encrypted = chiper.encrypt(bytes(args.username+' disconnected.', 'utf-8'))
+                node.send_to_node(connected[n][0], encrypted)
+            node.stop()
+            socket.sendall(bytes('3' + args.username, 'utf-8'))
+            socket.close()
+            exit(1)
+        elif choice[0] == 'menu':
+            menu_()
+            continue
         #BUG: Che succede se un peer si disconnette?trascurabile per i nostri scopi
         elif receiver != '':
             # devo inviare un messaggio al peer specificato
@@ -281,24 +274,16 @@ if __name__ == '__main__':
                 str_tosend = str(args.username) + ': ' + msg + ' [' + tstamp + ']'
 
                 #CIFRATURA
-                chiper_rsa = PKCS1_OAEP.new(RSA.import_key(pubKey_connected))
-                str_encrypted = chiper_rsa.encrypt(bytes(str_tosend,'utf-8'))
-                #print("str_tosend: ", str_tosend)
-                #print("coiche[0]: ", choice[0])
-                node.send_to_node(connected[receiver], str_encrypted)
+                key_crypt = RSA.import_key(connected[receiver][1])
+                chiper_rsa = PKCS1_OAEP.new(key_crypt) #valutare se trasformare in bytes
+                str_encrypted = chiper_rsa.encrypt(bytes(str_tosend, 'utf-8'))
+                print("len:", len(str_encrypted))
+                node.send_to_node(connected[receiver][0], str_encrypted)
                 continue
             else:
                 print("Specified user is not connected, please connect first to the user with 'connect' command\n")
                 continue
-        elif choice[0] == 'end':
-            # chiudere tutte le connessioni e terminare il client
-            node.send_to_nodes(args.username + ' disconnected.')
-            node.stop()
 
-            exit(1)
-        elif choice[0] == 'menu':
-            menu_()
-            continue
         else:
             print('Please, use one of te specified command')
 

@@ -22,7 +22,7 @@ def parse_args():
     return arguments
 
 def genera_mac(secret_, buff_mac):
-    print("Il segreto è:", secret)
+    print("Il segreto è:", secret_)
     h = HMAC.new(secret_, bytes(buff_mac,'utf-8'), digestmod=SHA256)
     mac = h.hexdigest()
     print("Il mac generato è:", mac)
@@ -49,6 +49,7 @@ def login(username):
     print("Chiave privata prelevata dal file:", private_key)
 
     cipher_rsa = PKCS1_OAEP.new(private_key)
+
     secret = cipher_rsa.decrypt(messaggio)  #decifro il messaggio (random) ricevuto dal server con la mia chiave privata
 
     print("Messaggio decifrato", secret)
@@ -77,7 +78,10 @@ def login(username):
         risposta = socket.recv(2048)
         print("risposta ricevuta")
         if mac == risposta.decode('utf8'):
+            global segreto
+            segreto = secret
             print("Login effettuato con successo")
+            return 1
         else:
             print("Errore in fase di login, riprovare")
     else:
@@ -91,9 +95,13 @@ def connect_to_contact(contact, socket):
         socket.sendall(bytes(to_send, 'utf-8'))
         rcv = socket.recv(1024)
         received = rcv.decode("utf-8")
-        rec_split = received.split()
+        print('ricevuto ', received)
+        rec_split = received.split('///')
         #rec_split[0] messaggio rec_split[1] mac
-        mac_ = genera_mac(secret, rec_split[0] + ' connect ' + contact)
+        mac_buffer = rec_split[0] + ' ' + to_send
+        print(mac_buffer)
+        mac_ = genera_mac(segreto, mac_buffer)
+        print('mac ', mac_)
         if (rec_split[0] != 'offline') and (mac_ == rec_split[1]):
             return received  # restituisce la lista [ ip,porta]
         else:
@@ -105,6 +113,7 @@ def connect_to_contact(contact, socket):
 
 def node_callback(event, node, connected_node, data):
     try:
+        global receiver
         if str(event) != 'message received ': # node_request_to_stop does not have any connected_node, while it is the main_node that is stopping!
             print('{}: {}'.format(event, data))
         elif str(event) == 'message received ':
@@ -183,7 +192,7 @@ def menu_():
 
 connected = {}
 receiver = ''
-secret = ''
+segreto = ''
 if __name__ == '__main__':
     args = parse_args()
     host = sk.gethostname()
@@ -192,10 +201,10 @@ if __name__ == '__main__':
     socket.connect((host, port))
 
     loggato = 0
-    menu = 0
+
     print("**************WELCOME TO ENCRYPTED CHAT****************\n")
 
-    while menu == 0:
+    while 1:
         comando = input("1--> signup\n"
                         "2--> login\n"
                         "3--> quit\n"
@@ -206,12 +215,11 @@ if __name__ == '__main__':
                 signup(args.username)
                 continue
             else:
-                logged = login(args.username)
-                print(logged)
-                if logged == '1':      #login avvenuta con successo
-                    loggato = 1
-                    menu = 1
-                elif logged == -1:
+                loggato = login(args.username)
+                print(loggato)
+                if loggato == 1:      #login avvenuta con successo
+                    break
+                elif loggato == -1:
                     continue
         elif comando == '3':
             if loggato == 1:

@@ -59,10 +59,12 @@ def search_pubKey(username):
 
 def login(username, indirizzo):
     print("sono nella login\n")
+    global secret
     file_registrati = open('./UtentiRegistrati.txt', 'r')
     riga_file = file_registrati.readline()
 
     if riga_file != '':
+
         random_string = get_random_string(64) #genero stringa random per autenticazione del client
         secret = bytes(random_string,'utf-8')
         #print("stringa random: ", random_string)
@@ -90,7 +92,8 @@ def login(username, indirizzo):
     if messaggio == bytes(random_string, 'utf-8'):          #se sono uguali autenticazione andata a buon fine, invio 1
 
         conn.sendall(bytes('1', 'utf-8'))
-        host_port = conn.recv(1024)
+        global loggato
+        global nickname
         loggato = 1
         nickname = username
         fd_user = open("./connessi/"+username+".txt", 'w')
@@ -191,12 +194,14 @@ def comunication_request(username):
         node = online.read()
         #ip_port va mandato tutto al client insieme alla chiave pubblica
         pubKey = search_pubKey(username)
-        #pubKey_b = bytes(pubKey)
-        #cipher_rsa = PKCS1_OAEP.new(RSA.import_key(pubKey_b))
         to_send = node + ' ***' + pubKey + '***'
+        print('tosend ', to_send)
+        print('stringa >'+to_send+' connect '+username)
         mac_ = genera_mac(secret, to_send+' connect '+username)
-        conn.sendall(bytes(to_send + ' ' + mac_, "utf-8"))
-
+        conn.sendall(bytes(to_send + '///' + mac_, "utf-8"))
+loggato = 0
+nickname = ""
+secret = ""
 if __name__ == '__main__':
 
     key = RSA.generate(2048)            #generazioni chiave privata per il server
@@ -233,9 +238,7 @@ if __name__ == '__main__':
             print('Got connection from ', addr[0], '(', addr[1], ')')
             ip = bytes(addr[0], 'utf-8')
             connection = " " + ip.decode('utf-8') + " "
-            loggato = 0
-            nickname = ""
-            secret = ""
+
             while True:
                 try:
                     data = conn.recv(1024)
@@ -245,13 +248,13 @@ if __name__ == '__main__':
                     command = buffer.split()
                     print("Request "+data.decode("utf-8"))
                     if command[0][0] == '1':
-                        signup(command[0][1:len(command[0])],buffer)
+                        signup(command[0][1:len(command[0])], buffer)
                     if command[0][0] == '2':
                         login(command[0][1:len(command[0])], connection)
                     if command[0][0] == '3':
                         logout(command[0][1:len(command[0])])
-                    if (len(command) > 1) and (command[0] == 'connect') and (loggato == 1):
-                        print("Richiesta dati di {} da {}, utente verificato.", command[1], nickname)
+                    if (len(command) > 1) and (command[0] == 'connect'):
+                        print("Richiesta dati di "+command[1]+" da "+nickname+", utente verificato.")
                         comunication_request(command[1])
                     # conn.sendall(bytes('Thank you for connecting', 'utf-8'))
 

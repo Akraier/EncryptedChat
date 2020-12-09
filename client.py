@@ -257,12 +257,22 @@ def key_exchange(username, node_):
 
     comunication_secret = get_random_string(16) #genero chiave
     connected[receiver][2] = comunication_secret
-    x = 'key ' + username + '###' + comunication_secret + ' ' +str(time.time())
+    x = 'key ' + username + '###' + comunication_secret
     print(x)
     key_ = RSA.import_key(connected[receiver][1]) #prelevo chiave pubblica di bob
     chiper = PKCS1_OAEP.new(key_)
     h = s256.new(bytes(x, 'utf-8'))
-    encrypted_key = chiper.encrypt(bytes(x+'?###//###?'+str(h), 'utf-8')) #chiave cifrata con chiave pubblica di bob
+    #devo firmare con la chiave privata di alice
+    filename = username +'.pem'
+    with open(filename, 'r') as key_file:
+        private = RSA.import_key(key_file.read())
+    signature = pkcs1_15.new(private).sign(h)
+    print('sig len ', len(signature))
+    to_send = x+'?###//###?'+str(signature)
+    print('send ',to_send)
+    print('len ',len(to_send))
+    encrypted_key = chiper.encrypt(bytes(to_send, 'utf-8')) #chiave cifrata con chiave pubblica di bob
+    print('cifrato ', encrypted_key)
     node_.send_to_node(connected[receiver][0], encrypted_key)        #invio la chiave cifrata
 
 

@@ -31,7 +31,7 @@ class Node(threading.Thread):
                  connected_node: Which connected node caused the event.
                  data: The data that is send by the connected node."""
 
-    def __init__(self, host, port, callback=None):
+    def __init__(self, host, port,username, callback=None):
         """Create instance of a Node. If you want to implement the Node functionality with a callback, you should
            provide a callback method. It is preferred to implement a new node by extending this Node class.
             host: The host name or ip address that is used to bind the TCP/IP server to.
@@ -47,7 +47,8 @@ class Node(threading.Thread):
         self.port = port
         # Events are send back to the given callback
         self.callback = callback
-
+        self.username = username
+        self.connected = dict()
         self.outbound_counter = 0
         # Nodes that have established a connection with this node
         self.nodes_inbound = []  # Nodes that are connect with us N->(US)->N

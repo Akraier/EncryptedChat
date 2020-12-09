@@ -3,6 +3,7 @@ import socket as sk
 from base64 import b64decode
 
 from Crypto.PublicKey import RSA
+from Crypto.Cipher import AES
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.Signature import pkcs1_15
 from Crypto.Hash import SHA256 as s256
@@ -115,8 +116,80 @@ def connect_to_contact(contact, socket):
     except:
         print('Errore di comunicazione con-to-cont')
 
-
+def comunication_decrypt_rsa(message, name):
+    #funzione che decifra message ricevuto da name
+    f = open(name + '.pem', 'r')  # recupero la mia chiave privata
+    private_key = RSA.import_key(f.read())
+    f.close()
+    to_decrypt = message[:len(message) - 1]
+    cipher_rsa = PKCS1_OAEP.new(private_key)
+    message_ = cipher_rsa.decrypt(to_decrypt)  # decifro il messaggioricevuto dal peer con la mia chiave privata
+    return message_.decode('utf-8')
+def aes_decrypt(nonce, ciphertext, tag, key):
+    cipher = AES.new(key, AES.MODE_EAX, nonce = nonce)
+    plaintext = cipher.decrypt(ciphertext)
+    try:
+        cipher.verify(tag)
+        print("Aes ok")
+        return plaintext
+    except:
+        print("AES error")
+        return 0
 def node_callback(event, node, connected_node, data):
+    if event != 'message received ':  # node_request_to_stop does not have any connected_node, while it is the main_node that is stopping!
+        print('{}: {}'.format(event, data))
+    elif event == 'message received ':
+        #node ricevente, connected_node mittente
+
+        if (connected_node.username in node.connected) and (node.connected[connected_node.username][4] == 0):
+            #receiver already connected to sender
+            #aes key available, can decrypt aes message
+            nonce, ciphertext, tag = data.split()
+            ret = aes_decrypt(nonce, ciphertext, tag,node.connected[connected_node][2])
+            if ret != 0:
+                print(ret)
+
+        elif (connected_node.username not in node.connected):
+            #receiver not connected, waiting for first message
+            #user aes_key
+            rsa_decrypted = comunication_decrypt_rsa(data, node.username)
+            rsa_decrypted_splitted = rsa_decrypted.split() #[0] user [1]aes_key
+            if rsa_decrypted_splitted[0] == connected_node.username:
+                #verify sender node(hackable?lib vulnerability)
+                ret = connect_to_contact(rsa_decrypted_splitted[0], socket) #asking server sender info
+                #build mac for this data. Verify in the next step
+                h = HMAC.new(bytes(rsa_decrypted_splitted[1]), digestmod=SHA256)
+                h.update(bytes(rsa_decrypted))
+                k = h.hexdigest()
+                values = [connected_node, ret.split("***")[1], rsa_decrypted_splitted[1], k, 1]
+                node.connected.update({connected_node.username:values}) #building the entry, deleted if mac or sign non verified
+        elif (connected_node.username in node.connected) and (node.connected[connected_node.username][4]==1):
+            #mac AES(sign)=(nonce, cipherthext, tag)
+            # verify mac
+            mac, aes = data.split()
+            try:
+                node.connected[connected_node.username][3].hexverify(mac)
+                print('mac OK')
+            except:
+                print('mac NOT OK')
+                #to delete user in connected and return
+                node.connected.pop(connected_node.username)
+            #verify signature
+            nonce, ciphertext, tag = aes.split('*')
+            ret = aes_decrypt(nonce,ciphertext, tag, node.connected[connected_node.username][3])
+            if ret != 0:
+                #aes gone well
+                #verify sign in ret
+                key = RSA.import_key(node.connected[connected_node.username][2])
+                h = SHA256.new(ret)
+                try:
+                    pkcs1_15.new(key).verify(h,ret)
+                    print("signature gone well")
+                    node.connected[connected_node.username][4]=0
+                except:
+                    print("signature gone wrong")
+                    node.connected.pop(connected_node.username)
+'''def node_callback(event, node, connected_node, data):
     global connected
     global receiver
     try:
@@ -124,22 +197,52 @@ def node_callback(event, node, connected_node, data):
         if str(event) != 'message received ': # node_request_to_stop does not have any connected_node, while it is the main_node that is stopping!
             print('{}: {}'.format(event, data))
         elif str(event) == 'message received ':
-            f = open(args.username + '.pem', 'r')  # recupero la mia chiave privata
-            private_key = RSA.import_key(f.read())
-            f.close()
-            to_decrypt = data[:len(data)-1]
-            cipher_rsa = PKCS1_OAEP.new(private_key)
-            message = cipher_rsa.decrypt(to_decrypt)  # decifro il messaggioricevuto dal peer con la mia chiave privata
-            msg = message.decode('utf-8')
-            print(msg + '\n')
+            try:
+                type = data.decode('utf-8')
+            except:
+                print('fammi vede che succede')
 
-            msg_splitted = msg.split('?###//###?') # provo a splittare il messaggio ricevuto: [0] messaggio [1] firma
-            if len(msg_splitted) > 1:  # spero che nessun utente provi ad inviare '?###//###?' durante un mesasggio normale
+            type_start = type.split('###')
+            if type_start[0] == 'start1' :
+                #messaggio di inizializzazione "key user realkey" contenuto in type_start[1]
+                decrypted_1 = comunication_decrypt_rsa(type_start[1],args.username)
+                kur = decrypted_1.split()
+                ret = connect_to_contact(kur[2], socket) #richiedo al server i dati di bob
+                if ret == '0':
+                    print('errore durante lo scambio di chiave')
+                    exit()
+                else:
+                    # inizializzo connected [nodo, pubK,AesK,mac] 
+                    #genero il mac per type_start[1] con AesK e lo salvo in connected
+                    h = HMAC.new(bytes(kur[2], 'utf-8'), digestmod=SHA256)
+                    h.update(type_start[1])
+                    mac = h.hexdigest()
+                    values = [node.nodes_outbound[node.outbound_counter - 1], ret.split("***")[1], kur[2], mac]
+                    connected.update({kur[1]: values})  # aggiorno la variabile connected
+            elif type_start[0] == 'start2':
+                #start2###user??MAC AES
+                
+                user_coded = type_start[1].split('??')
+                if (user_coded[0] in connected) and (connected[user_coded[0]][3]!=''):
+                    #user ha effettuato start1 ed e' in attesa di start2
+                    mac, aes_encrypted = user_coded[1].split('//') 
+                    #decodifico mac e mi accerto che corrisponda
+                    try:
+                        
+                    
+            else:
+                #decifro con aes
+                to_print = comunication_decrypt(data,args.username)
+                print(to_print)
+
+
+            msg_splitted = msg.split('?###0001###?') # provo a splittare il messaggio ricevuto: [0] key_user [1] aes_key
+            if len(msg_splitted) > 1:  # spero che nessun utente provi ad inviare '###' durante un mesasggio normale
                 print("eccoci qua")
-                key_user = msg_splitted[0].split('###') # [0] 'key' username [1] realkey timestamp
-                key_user_ = key_user[0].split()
-                if (key_user_[0] == 'key') and (len(key_user_) > 1): #controllo obsoleto forse
-                    ret = connect_to_contact(key_user_[1], socket) # chiedo al server le informazioni di bob
+                key_user = msg_splitted[0].split() # [0] 'key'  [1] username
+                #key_user_ = key_user[0].split() # [0] key [1] user
+                if (key_user[0] == 'key') and (len(key_user) > 1): #controllo obsoleto forse
+                    ret = connect_to_contact(key_user[1], socket) # chiedo al server le informazioni di bob
                     if ret == '0':
                         print('error during key exchange.')
                         exit()
@@ -148,7 +251,7 @@ def node_callback(event, node, connected_node, data):
                         # e' il caso che provo ad inizializzare anche connected
                         print('eccoci qua2')
                         rx_pk = RSA.import_key(ret.split('***')[1])# chiave pubblica di bob
-                        h = s256.new(bytes(msg_splitted[0], 'utf-8')) #genero hash del messaggio
+                        h = s256.new(bytes(msg, 'utf-8')) #genero hash del messaggio
 
                         try:
                             pkcs1_15.new(rx_pk).verify(h, bytes(msg_splitted[1]))
@@ -180,14 +283,7 @@ def node_callback(event, node, connected_node, data):
                 receiver = ''
             print(args.username + '>>' + receiver + ':')
     except Exception as e:
-        print(e)
-
-
-def reply_connection(s, node, rx_name):
-    #la funzione crea un istanza connected[username] con la chiave di bob
-    global connected
-    x = s.split()
-    values = [node.nodes_outbound[node.outbound_counter - 1], s.split("***")[1], ""]
+        print(e)'''
 
 
 def signup(username):
@@ -204,8 +300,6 @@ def signup(username):
     public_key = keys.publickey() # generazione chiave pubblica
     public_key_send = public_key.export_key()
     #public_key_send = public_key_send.decode('utf-8')
-
-
 
     # spedisco al server la chiave pubblica
     #socket.sendall(bytes(public_key_send, 'utf-8')) #GIUSTO
@@ -258,34 +352,40 @@ def key_exchange(username, node_):
 
 
     comunication_secret = get_random_string(16) #genero chiave
-    connected[receiver][2] = comunication_secret
-    x = 'key ' + username + '###' + comunication_secret
+    node.connected[receiver][2] = comunication_secret
+    #first message
+    x = username + ' ' + comunication_secret
     print(x)
-    key_ = RSA.import_key(connected[receiver][1]) #prelevo chiave pubblica di bob
-    chiper = PKCS1_OAEP.new(key_)
+    key_ = RSA.import_key(node.connected[receiver][1]) #prelevo chiave pubblica di bob
+    cipher = PKCS1_OAEP.new(key_)
 
-    encrypted_key = chiper.encrypt(bytes(x,'utf-8')) #chiave cifrata con chiave pubblica di bob
-    print('cifrato ', encrypted_key)
+    encrypted = cipher.encrypt(bytes(x, 'utf-8')) #chiave cifrata con chiave pubblica di bob
+    print('cifrato ', encrypted)
 
-    node_.send_to_node(connected[receiver][0], encrypted_key)        #invio la chiave cifrata
+    node_.send_to_node(node.connected[receiver][0], encrypted)        #invio il messaggio cifrato
 
     #firmo x
-    k = s256.new(bytes(x, 'utf-8'))
+    digest = s256.new(bytes(x, 'utf-8'))
     # devo firmare con la chiave privata di alice
     filename = username +'.pem'
     with open(filename, 'r') as key_file:
         private = RSA.import_key(key_file.read())
-    signature = pkcs1_15.new(private).sign(k)
+    signature = pkcs1_15.new(private).sign(digest)
 
     #Genero un MAC
     h = HMAC.new(bytes(comunication_secret,'utf-8'), digestmod=SHA256)
-    h.update(signature)
+    h.update(x)
     mac = h.hexdigest()
+    #Cifro la firma con AES
+    aes_cipher = AES.new(comunication_secret, AES.MODE_EAX)
+    nonce = aes_cipher.nonce
+    ciphertext, tag = aes_cipher.encrypt_and_digest(signature)
 
-    node_.send_to_node(connected[receiver][0], bytes(mac,'utf-8'))  # invio la chiave cifrata
+    #invio tutto al ricevente
+    to_send = mac +' '+ str(nonce)+'*'+str(ciphertext)+'*'+str(tag)
+    node_.send_to_node(node.connected[receiver][0], bytes(to_send,'utf-8'))  # invio la chiave cifrata
 
 
-connected = {}
 receiver = ''
 segreto = ''
 if __name__ == '__main__':
@@ -324,7 +424,7 @@ if __name__ == '__main__':
         else:
             print('Please, use one of the given command')
 
-    node = Node(args.ip, args.port, node_callback)
+    node = Node(args.ip, args.port, args.username, node_callback)
     node.start()
     #connected = {}      #dizionario dei peer connessi
     msg = ''
@@ -336,7 +436,7 @@ if __name__ == '__main__':
         msg = input(args.username + '>>' + receiver + ':')
         choice = msg.split()
         if (choice[0] == 'connect') and (choice[1] != []):
-            if (connected == {}) or (choice[1] not in connected):
+            if (node.connected == {}) or (choice[1] not in node.connected):
                 # tentativo di connessione all'utente
                 tupla = connect_to_contact(choice[1], socket)
                 # !! POINT: possiamo garantire che i dati ricevuti siano corretti per quell' utente?
@@ -347,7 +447,7 @@ if __name__ == '__main__':
                     node.connect_with_node(str(address[1]), int(address[2]))
                     # mantengo aggiornato un dizionario di referenze username:[nodo,chiave pubblica, chiave aes]
                     values = [node.nodes_outbound[node.outbound_counter - 1], tupla.split("***")[1], ""]
-                    connected.update({choice[1] : values})
+                    node.connected.update({choice[1] : values})
                     receiver = choice[1]
                     key_exchange(args.username, node) #effettuo lo scambio di chiavi
 
@@ -355,12 +455,12 @@ if __name__ == '__main__':
                 continue
         elif choice[0] == 'end':
             # chiudere tutte le connessioni e terminare il client
-            for n in connected:
+            for n in node.connected:
                 print(n)
-                key = RSA.import_key(connected[n][1])
+                key = RSA.import_key(node.connected[n][1])
                 chiper = PKCS1_OAEP.new(key)
                 encrypted = chiper.encrypt(bytes(args.username+' disconnected.', 'utf-8'))
-                node.send_to_node(connected[n][0], encrypted)
+                node.send_to_node(node.connected[n][0], encrypted)
             node.stop()
             socket.sendall(bytes('3' + args.username, 'utf-8'))
             socket.close()
@@ -372,17 +472,17 @@ if __name__ == '__main__':
         elif receiver != '':
             # devo inviare un messaggio al peer specificato
             # controllo che il peer sia connesso
-            if receiver in connected:
+            if receiver in node.connected:
                 # invia il messaggio
                 tstamp = time.strftime('%H:%M:%S', time.localtime())
                 str_tosend = str(args.username) + ': ' + msg + ' [' + tstamp + ']'
 
                 #CIFRATURA
-                key_crypt = RSA.import_key(connected[receiver][1])
+                key_crypt = RSA.import_key(node.connected[receiver][1])
                 chiper_rsa = PKCS1_OAEP.new(key_crypt) #valutare se trasformare in bytes
                 str_encrypted = chiper_rsa.encrypt(bytes(str_tosend, 'utf-8'))
                 print("len:", len(str_encrypted))
-                node.send_to_node(connected[receiver][0], str_encrypted)
+                node.send_to_node(node.connected[receiver][0], str_encrypted)
                 continue
             else:
                 print("Specified user is not connected, please connect first to the user with 'connect' command\n")

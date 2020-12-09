@@ -205,6 +205,8 @@ def signup(username):
     public_key_send = public_key.export_key()
     #public_key_send = public_key_send.decode('utf-8')
 
+
+
     # spedisco al server la chiave pubblica
     #socket.sendall(bytes(public_key_send, 'utf-8')) #GIUSTO
     socket.sendall(public_key_send)
@@ -261,20 +263,26 @@ def key_exchange(username, node_):
     print(x)
     key_ = RSA.import_key(connected[receiver][1]) #prelevo chiave pubblica di bob
     chiper = PKCS1_OAEP.new(key_)
-    h = s256.new(bytes(x, 'utf-8'))
-    #devo firmare con la chiave privata di alice
+
+    encrypted_key = chiper.encrypt(bytes(x,'utf-8')) #chiave cifrata con chiave pubblica di bob
+    print('cifrato ', encrypted_key)
+
+    node_.send_to_node(connected[receiver][0], encrypted_key)        #invio la chiave cifrata
+
+    #firmo x
+    k = s256.new(bytes(x, 'utf-8'))
+    # devo firmare con la chiave privata di alice
     filename = username +'.pem'
     with open(filename, 'r') as key_file:
         private = RSA.import_key(key_file.read())
-    signature = pkcs1_15.new(private).sign(h)
-    print('sig len ', len(signature))
-    to_send = x+'?###//###?'+str(signature)
-    print('send ',to_send)
-    print('len ',len(to_send))
-    encrypted_key = chiper.encrypt(bytes(to_send, 'utf-8')) #chiave cifrata con chiave pubblica di bob
-    print('cifrato ', encrypted_key)
-    node_.send_to_node(connected[receiver][0], encrypted_key)        #invio la chiave cifrata
+    signature = pkcs1_15.new(private).sign(k)
 
+    #Genero un MAC
+    h = HMAC.new(bytes(comunication_secret,'utf-8'), digestmod=SHA256)
+    h.update(signature)
+    mac = h.hexdigest()
+
+    node_.send_to_node(connected[receiver][0], bytes(mac,'utf-8'))  # invio la chiave cifrata
 
 
 connected = {}

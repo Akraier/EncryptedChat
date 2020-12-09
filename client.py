@@ -4,10 +4,15 @@ from base64 import b64decode
 
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
+from Crypto.Signature import pkcs1_15
+from Crypto.Hash import SHA256 as s256
+
 #from p2pnetwork.node import Node
 from node import Node
 import time
 import argparse
+import string
+import random
 from Crypto.Hash import HMAC, SHA256
 
 buffer = ''
@@ -112,6 +117,8 @@ def connect_to_contact(contact, socket):
 
 
 def node_callback(event, node, connected_node, data):
+    global connected
+    global receiver
     try:
         global receiver
         if str(event) != 'message received ': # node_request_to_stop does not have any connected_node, while it is the main_node that is stopping!
@@ -123,9 +130,50 @@ def node_callback(event, node, connected_node, data):
             to_decrypt = data[:len(data)-1]
             cipher_rsa = PKCS1_OAEP.new(private_key)
             message = cipher_rsa.decrypt(to_decrypt)  # decifro il messaggioricevuto dal peer con la mia chiave privata
-            print()
             msg = message.decode('utf-8')
             print(msg + '\n')
+
+            msg_splitted = msg.split('?###//###?') # provo a splittare il messaggio ricevuto: [0] messaggio [1] firma
+            if len(msg_splitted) > 1:  # spero che nessun utente provi ad inviare '?###//###?' durante un mesasggio normale
+                print("eccoci qua")
+                key_user = msg_splitted[0].split('###') # [0] 'key' username [1] realkey timestamp
+                key_user_ = key_user[0].split()
+                if (key_user_[0] == 'key') and (len(key_user_) > 1): #controllo obsoleto forse
+                    ret = connect_to_contact(key_user_[1], socket) # chiedo al server le informazioni di bob
+                    if ret == '0':
+                        print('error during key exchange.')
+                        exit()
+                    else:
+                        # devo prelevare la chiave pubblica di rx e provare a decifrare la firma
+                        # e' il caso che provo ad inizializzare anche connected
+                        print('eccoci qua2')
+                        rx_pk = RSA.import_key(ret.split('***')[1])# chiave pubblica di bob
+                        h = s256.new(bytes(msg_splitted[0], 'utf-8')) #genero hash del messaggio
+
+                        try:
+                            pkcs1_15.new(rx_pk).verify(h, bytes(msg_splitted[1]))
+                            print("firma valida")
+                        except:
+                            #se fallisce la decrypt l'autenticita' non e' garantita
+                            print('errore firma digitale')
+                            return
+                        # a questo punto posso salvare la chiave e stabilire la connessione
+                        key_time = msg_splitted[1].split()
+                        #controllo un record&playback
+                        ts = time.time()
+                        if int(key_time[1]) < ts-1:
+                            print("Record&playback")
+                            return
+                        else:
+                            values = [node.nodes_outbound[node.outbound_counter - 1], ret.split("***")[1], key_time[0]]
+                            connected.update({key_user[1] : values}) #aggiorno la variabile connected
+                            address = ret.split()
+                            node.connect_with_node(str(address[1]), int(address[2]))
+                            print("connected with " + key_user_[1])
+                            receiver = key_user_[1]
+            else:
+                print('non il primo')
+
             splitted = msg.split()
             if (splitted[1] == 'disconnected.') and (splitted[0] in connected):
                 connected.pop(splitted[0])
@@ -133,6 +181,13 @@ def node_callback(event, node, connected_node, data):
             print(args.username + '>>' + receiver + ':')
     except Exception as e:
         print(e)
+
+
+def reply_connection(s, node, rx_name):
+    #la funzione crea un istanza connected[username] con la chiave di bob
+    global connected
+    x = s.split()
+    values = [node.nodes_outbound[node.outbound_counter - 1], s.split("***")[1], ""]
 
 
 def signup(username):
@@ -190,6 +245,28 @@ def menu_():
     print("-'end' close all the connection with this peer, end the program.\n")
     print("-'menu' review following commands. \n")
 
+def get_random_string(length):
+    # Random string with the combination of lower and upper case
+    letters = string.ascii_letters
+    result_str = ''.join(random.choice(letters) for i in range(length))
+    return result_str
+
+
+def key_exchange(username, node_):
+
+
+    comunication_secret = get_random_string(16) #genero chiave
+    connected[receiver][2] = comunication_secret
+    x = 'key ' + username + '###' + comunication_secret + ' ' +str(time.time())
+    print(x)
+    key_ = RSA.import_key(connected[receiver][1]) #prelevo chiave pubblica di bob
+    chiper = PKCS1_OAEP.new(key_)
+    h = s256.new(bytes(x, 'utf-8'))
+    encrypted_key = chiper.encrypt(bytes(x+'?###//###?'+str(h), 'utf-8')) #chiave cifrata con chiave pubblica di bob
+    node_.send_to_node(connected[receiver][0], encrypted_key)        #invio la chiave cifrata
+
+
+
 connected = {}
 receiver = ''
 segreto = ''
@@ -231,7 +308,7 @@ if __name__ == '__main__':
 
     node = Node(args.ip, args.port, node_callback)
     node.start()
-    connected = {}      #dizionario dei peer connessi
+    #connected = {}      #dizionario dei peer connessi
     msg = ''
 
     menu_()
@@ -250,11 +327,12 @@ if __name__ == '__main__':
                     address = tupla.split(" ")
                     # mi connetto al nodo destinatario con i dati forniti dal server
                     node.connect_with_node(str(address[1]), int(address[2]))
-                    # mantengo aggiornato un dizionario di referenze username:nodo
-                    values = [node.nodes_outbound[node.outbound_counter - 1], tupla.split("***")[1]]
+                    # mantengo aggiornato un dizionario di referenze username:[nodo,chiave pubblica, chiave aes]
+                    values = [node.nodes_outbound[node.outbound_counter - 1], tupla.split("***")[1], ""]
                     connected.update({choice[1] : values})
-                    #connected[choice[1]] = node.nodes_outbound[node.outbound_counter - 1]
                     receiver = choice[1]
+                    key_exchange(args.username, node) #effettuo lo scambio di chiavi
+
                     continue
                 continue
         elif choice[0] == 'end':

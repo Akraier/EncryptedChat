@@ -373,11 +373,11 @@ def key_exchange(username, node_):
     signature = pkcs1_15.new(private).sign(digest)
 
     #Genero un MAC
-    h = HMAC.new(bytes(comunication_secret,'utf-8'), digestmod=SHA256)
-    h.update(x)
+    h = HMAC.new(bytes(comunication_secret, 'utf-8'), digestmod=SHA256)
+    h.update(bytes(x))
     mac = h.hexdigest()
     #Cifro la firma con AES
-    aes_cipher = AES.new(comunication_secret, AES.MODE_EAX)
+    aes_cipher = AES.new(bytes(comunication_secret, 'utf-8'), AES.MODE_EAX)
     nonce = aes_cipher.nonce
     ciphertext, tag = aes_cipher.encrypt_and_digest(signature)
 

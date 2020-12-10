@@ -127,7 +127,7 @@ def comunication_decrypt_rsa(message, name):
     message_ = cipher_rsa.decrypt(to_decrypt)  # decifro il messaggioricevuto dal peer con la mia chiave privata
     return message_.decode('utf-8')
 def aes_decrypt(nonce, ciphertext, tag, key):
-    cipher = AES.new(key, AES.MODE_EAX, nonce=nonce)
+    cipher = AES.new(bytes(key,'utf-8'), AES.MODE_EAX, nonce=nonce)
     plaintext = cipher.decrypt(ciphertext)
     try:
         cipher.verify(tag)
@@ -170,12 +170,13 @@ def node_callback(event, node, connected_node, data):
             sender_name, half_aes_key = plaintext.split()
             ret = connect_to_contact(sender_name,socket)
             if ret != 0:
+                global receiver
                 address = ret.split(" ")
                 # mi connetto al nodo destinatario con i dati forniti dal server
                 second_half = get_random_string(8)
                 aes_key = half_aes_key + second_half
                 node.connect_with_node(str(address[1]), int(address[2]))
-                values = [node.nodes_outbound[node.outbound_counter - 1], ret.split("***")[1],aes_key]
+                values = [node.nodes_outbound[node.outbound_counter - 1], ret.split("***")[1],aes_key,1]
                 node.connected.update({sender_name: values})
                 #bob deve rispondere con la seconda parte della chiave
 
@@ -184,11 +185,13 @@ def node_callback(event, node, connected_node, data):
                 chiper_rsa = PKCS1_OAEP.new(key_crypt)
                 str_encrypted = chiper_rsa.encrypt(bytes(to_send, 'utf-8'))
                 node.send_to_node(node.connected[sender_name][0], bytes("init2 ",'utf-8')+str_encrypted)
+                receiver = sender_name
         elif init == 'init2':
             plaintext = comunication_decrypt_rsa(data[6:len(data)], args.username)
             sender_name, sec_half = plaintext.split()
             if sender_name in node.connected: #altrimenti sec non e' giustificato
                 node.connected[sender_name][2] += sec_half
+                node.connected[sender_name][3] = 1
             else:
                 print('utente non connesso')
         else:
@@ -219,7 +222,7 @@ def node_callback(event, node, connected_node, data):
                     print(sender_name + '>>' + plaintext)
             else:
                 print('Aes decrypt failed')'''
-            print(username + '>>' + plaintext)
+            print(username + '>>' + plaintext.decode('utf-8'))
         '''if (receiver_username in node.connected) and (node.connected[receiver_username][4] == 0):
             #receiver already connected to sender
             #aes key available, can decrypt aes message
@@ -424,7 +427,7 @@ if __name__ == '__main__':
         msg = input(args.username + '>>' + receiver + ':')
         choice = msg.split()
         if (choice[0] == 'connect') and (choice[1] != []):
-            if (node.connected == {}) or (choice[1] not in node.connected):
+            if  (choice[1] not in node.connected) or (node.connected[choice[1]][3] == 0):
                 # tentativo di connessione all'utente
                 tupla = connect_to_contact(choice[1], socket)
                 # !! POINT: possiamo garantire che i dati ricevuti siano corretti per quell' utente?
@@ -436,13 +439,18 @@ if __name__ == '__main__':
                     id_user.update({id:choice[1]})
                     print(id_user)
                     # mantengo aggiornato un dizionario di referenze username:[nodo,chiave pubblica, chiave aes]
-                    values = [node.nodes_outbound[node.outbound_counter - 1], tupla.split("***")[1], ""]
+                    values = [node.nodes_outbound[node.outbound_counter - 1], tupla.split("***")[1], "", 0]
                     node.connected.update({choice[1] : values})
                     receiver = choice[1]
                     key_exchange(args.username, node) #effettuo lo scambio di chiavi
 
                     continue
                 continue
+            if (node.connected[choice[1]][3] == 1) and ( choice[1] != receiver):
+                tupla = connect_to_contact(choice[1], socket)
+                if tupla != '0':
+                    address = tupla.split(" ")
+                    node.connect_with_node(str(address[1]), int(address[2]))
         elif choice[0] == 'end':
             # chiudere tutte le connessioni e terminare il client
             for n in node.connected:

@@ -100,11 +100,14 @@ class NodeConnection(threading.Thread):
            the according data."""
         try:
             packet_decoded = packet.decode('utf-8')
-
+            print('packet ',packet_decoded)
             try:
-                return json.loads(packet_decoded)
+                aaa = json.loads(packet_decoded)
+                print(aaa)
+                return aaa
 
             except json.decoder.JSONDecodeError:
+
                 return packet_decoded
 
         except UnicodeDecodeError:
@@ -123,7 +126,6 @@ class NodeConnection(threading.Thread):
 
             try:
                 chunk = self.sock.recv(4096)
-
             except socket.timeout:
                 self.main_node.debug_print("NodeConnection: timeout")
 
@@ -134,6 +136,7 @@ class NodeConnection(threading.Thread):
 
             # BUG: possible buffer overflow when no EOT_CHAR is found => Fix by max buffer count or so?
             if chunk != b'':
+                print('eccoci qua')
                 self.main_node.node_message(self, chunk)
                 '''buffer += chunk
                 eot_pos = buffer.find(self.EOT_CHAR)

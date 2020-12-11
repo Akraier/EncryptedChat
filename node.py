@@ -87,7 +87,7 @@ class Node(threading.Thread):
 
     def init_server(self):
         """Initialization of the TCP/IP server to receive connections. It binds to the given host and port."""
-        print("Initialisation of the Node on port: " + str(self.port) + " on node (" + self.id + ")")
+        #print("Initialisation of the Node on port: " + str(self.port) + " on node (" + self.id + ")")
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind((self.host, self.port))
         self.sock.settimeout(10.0)
@@ -139,7 +139,7 @@ class Node(threading.Thread):
         if n in self.nodes_inbound or n in self.nodes_outbound:
             try:
                 n.send(data)
-                self.msg_sent(n, data)
+                #self.msg_sent(n, data)
             except Exception as e:
                 self.debug_print("Node send_to_node: Error while sending data to the node (" + str(e) + ")")
         else:
@@ -258,13 +258,13 @@ class Node(threading.Thread):
         self.sock.settimeout(None)
         self.sock.close()
         print("Node stopped")
-
+    '''
     def msg_sent(self, node, data):
         """Invoked when a message is sent """
         self.debug_print("message sent:" + node.id)
         if self.callback is not None:
             self.callback("message sent", self, node, data)
-
+    '''
     def outbound_node_connected(self, node):
         """This method is invoked when a connection with a outbound node was successfull. The node made
            the connection itself."""

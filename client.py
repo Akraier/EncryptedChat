@@ -215,6 +215,14 @@ def node_callback(event, node, connected_node, data):
             mac_rec = genera_mac(secret, messaggio)
             #print("Mac_rec:", mac_rec)
 
+            command = messaggio.split()[1]
+            if command == 'disconnected.':
+                if receiver == username:
+                    receiver = ''
+                    print(messaggio + " Connect to another user.")
+                node.connected.pop(username)
+                return
+
             if mac_rec != this_mac.decode('utf-8'):
                 print("Il messaggio è stato manomesso")
                 return
@@ -377,11 +385,25 @@ if __name__ == '__main__':
         elif choice[0] == 'end':
             # chiudere tutte le connessioni e terminare il client
             for n in node.connected:
-                #print(n)
-                key = RSA.import_key(node.connected[n][1])
-                chiper = PKCS1_OAEP.new(key)
-                encrypted = chiper.encrypt(bytes(args.username+' disconnected.', 'utf-8'))
-                node.send_to_node(node.connected[n][0], encrypted)
+                to_send = args.username+' disconnected.'
+                cipher_aes = AES.new(bytes(node.connected[n][2], 'utf-8'),AES.MODE_EAX)  # valutare se trasformare in bytes
+                print("Pare che la chiave simmetrica sia:", node.connected[receiver][2])
+                nonce = cipher_aes.nonce
+                # MAC
+                mac = genera_mac(bytes(node.connected[n][2], 'utf-8'), to_send)
+                print("Mac generato dal sender:", mac)
+                str_tosend = mac + to_send
+                ciphertext, tag = cipher_aes.encrypt_and_digest(bytes(str_tosend, 'utf-8'))
+
+                aes = {'ciphertext': ciphertext,
+                       'nonce': nonce,
+                       'tag': tag,
+                       'username': args.username}
+
+                json_data = str(aes)
+                node.send_to_node(node.connected[n][0], json_data)
+
+
             node.stop()
             socket.sendall(bytes('3' + args.username, 'utf-8'))
             socket.close()

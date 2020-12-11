@@ -154,7 +154,7 @@ def node_callback(event, node, connected_node, data):
         #node ricevente, connected_node mittente
         #connected_node.id is the only
         #receiver_username = id_user[connected_node.id]
-        print('DATA ', data)
+       # print('DATA ', data)
         init = ''
         try:
             init = data[0:5].decode('utf-8')
@@ -165,7 +165,7 @@ def node_callback(event, node, connected_node, data):
 
         if init == 'init1':
             #prima fase dello scambio di chiavi
-            print('banana ',data[6:len(data)])
+            #print('banana ',data[6:len(data)])
             plaintext = comunication_decrypt_rsa(data[6:len(data)], args.username)
             sender_name, half_aes_key = plaintext.split()
             ret = connect_to_contact(sender_name,socket)
@@ -188,6 +188,7 @@ def node_callback(event, node, connected_node, data):
                 receiver = sender_name
         elif init == 'init2':
             plaintext = comunication_decrypt_rsa(data[6:len(data)], args.username)
+            #print("Sto in init 2, plaintext:", plaintext)
             sender_name, sec_half = plaintext.split()
             if sender_name in node.connected: #altrimenti sec non e' giustificato
                 node.connected[sender_name][2] += sec_half
@@ -197,7 +198,7 @@ def node_callback(event, node, connected_node, data):
         else:
             print('bananan2 ', type(data))
             dict = eval(data[:len(data)-1].decode('utf-8'))
-            print(dict)
+
             #dict_dec = dict.decode('utf-8')
 
             #dict = json.dumps(data)
@@ -211,7 +212,21 @@ def node_callback(event, node, connected_node, data):
             nonce, ciphertext, tag = aes.split('*')'''
             #qui posso decifrare con aes
 
-            plaintext  = aes_decrypt(dict['nonce'],dict['ciphertext'],dict['tag'], node.connected[username][2])
+            plaintext = aes_decrypt(dict['nonce'],dict['ciphertext'],dict['tag'], node.connected[username][2])
+
+            this_mac = plaintext[0:64]
+            messaggio = plaintext[64:len(plaintext)].decode('utf-8')
+
+            # check mac
+            print("Il tipo del segreto è:", type(node.connected[username][2]))
+            secret = bytes(node.connected[username][2], 'utf-8')
+            mac_rec = genera_mac(secret, messaggio)
+            print("Mac_rec:", mac_rec)
+
+            if mac_rec != this_mac.decode('utf-8'):
+                print("Il messaggio è stato manomesso")
+                return
+
             '''if plaintext != 0:
                 #la traduzione ha funzionato
                 code, firma = plaintext.split('*')
@@ -222,7 +237,7 @@ def node_callback(event, node, connected_node, data):
                     print(sender_name + '>>' + plaintext)
             else:
                 print('Aes decrypt failed')'''
-            print(username + '>>' + plaintext.decode('utf-8'))
+            print(username + '>>' + messaggio)
         '''if (receiver_username in node.connected) and (node.connected[receiver_username][4] == 0):
             #receiver already connected to sender
             #aes key available, can decrypt aes message
@@ -473,18 +488,25 @@ if __name__ == '__main__':
             if receiver in node.connected:
                 # invia il messaggio
                 tstamp = time.strftime('%H:%M:%S', time.localtime())
-                str_tosend = ': ' + msg + ' [' + tstamp + ']'
+                str_mess = ': ' + msg + ' [' + tstamp + ']'
 
                 #CIFRATURA
 
                 #key_crypt = RSA.import_key(node.connected[receiver][1])
                 cipher_aes = AES.new(bytes(node.connected[receiver][2], 'utf-8'), AES.MODE_EAX) #valutare se trasformare in bytes
+                print("Pare che la chiave simmetrica sia:", node.connected[receiver][2])
                 nonce = cipher_aes.nonce
+                #MAC
+                mac = genera_mac(bytes(node.connected[receiver][2], 'utf-8'), str_mess)
+                print("Mac generato dal sender:",mac)
+                str_tosend = mac + str_mess
                 #str_encrypted = chiper_rsa.encrypt(bytes(str_tosend, 'utf-8'))
                 ciphertext, tag = cipher_aes.encrypt_and_digest(bytes(str_tosend, 'utf-8'))
-                print('nonce', type(nonce))
-                print('ciphertext', type(ciphertext))
-                print('tag',type(tag))
+
+
+                #print('nonce', type(nonce))
+                #print('ciphertext', type(ciphertext))
+                #print('tag',type(tag))
                 userLen = len(args.username)
                 if userLen < 10:
                     userLen = '0'+str(userLen)
@@ -495,7 +517,7 @@ if __name__ == '__main__':
                        'username':args.username}
 
                 json_data = str(aes)
-                print(aes)
+                #print(aes)
                 node.send_to_node(node.connected[receiver][0], json_data )
                 continue
             else:

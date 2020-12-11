@@ -114,6 +114,7 @@ def login(username, indirizzo):
         if mac == mac_client.decode('utf-8'):
             conn.sendall(bytes(mac, 'utf-8'))
             print("Utente loggato con successo")
+
         else:
             conn.sendall(b'0')
             print("Tentativo di login rifiutato")

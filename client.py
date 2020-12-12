@@ -1,12 +1,7 @@
-import binascii
 import socket as sk
-from base64 import b64decode
-import json
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import AES
 from Crypto.Cipher import PKCS1_OAEP
-from Crypto.Signature import pkcs1_15
-from Crypto.Hash import SHA256 as s256
 
 #from p2pnetwork.node import Node
 from node import Node
@@ -211,7 +206,7 @@ def node_callback(event, node, connected_node, data):
                 print("Il messaggio è stato manomesso")
                 return
 
-            print(username + '>>' + messaggio)
+            print('\n' + username + '>>' + messaggio + '\n')
 
 
 

@@ -39,8 +39,8 @@ def logout(username):
 def search_pubKey(username):
     registrati = open('./UtentiRegistrati.txt', 'r')
     riga_file = registrati.readline()
-    #if username in registrati.read():
-    while riga_file != '':                                 #scorro il file per vedere se l'username è registrato
+    # scorro il file per vedere se l'username è registrato
+    while riga_file != '':
         if riga_file.split(" ")[0] != username:
             riga_file = registrati.readline()
             continue
@@ -52,9 +52,6 @@ def search_pubKey(username):
         return PubKeyClient
     registrati.close()
     return
-        #elif riga_file.split()[0] == username:
-           # break
-
 
 
 def login(username, indirizzo):
@@ -65,34 +62,38 @@ def login(username, indirizzo):
 
     if riga_file != '':
         print("Genero stringa di autenticazione...")
-        random_string = get_random_string(64) #genero stringa random per autenticazione del client
+        # genero stringa random per autenticazione del client
+        random_string = get_random_string(64)
         secret = bytes(random_string,'utf-8')
         print("Recupero chiave pubblica del client...")
-        PubKey = search_pubKey(username)#prendo la chiave pubblica del client dal file per cifrare la stringa
+        # prendo la chiave pubblica del client dal file per cifrare la stringa
+        PubKey = search_pubKey(username)
         PubKeyClient_bytes = bytes(PubKey, 'utf-8')
         print('chiave pubblica: ', PubKey)
         cipher_rsa = PKCS1_OAEP.new(RSA.import_key(PubKeyClient_bytes))
         print("Cifratura con RSA della stringa...")
-        message = cipher_rsa.encrypt(secret)         # cifro con chiave pubblica del client e mando
-        #print('stringa random cifrata: ', message)
+        # cifro con chiave pubblica del client e mando
+        message = cipher_rsa.encrypt(secret)
         conn.sendall(bytes('1', 'utf-8'))
         print("Invio stringa cifrata...")
         conn.sendall(message)
 
     elif riga_file == '':
+        # caso di utente non registrato, restituisco errore
         print("NON TROVATO!\n")
-        conn.sendall(bytes('-1', 'utf-8'))              #caso di utente non registrato, restituisco errore
+        conn.sendall(bytes('-1', 'utf-8'))
         return
 
-    ricevuto = conn.recv(1024)                            #ricevo stringa random cifrata dal client
+    # ricevo stringa random cifrata dal client
+    ricevuto = conn.recv(1024)
     print("RICEVUTO: ", ricevuto)
     messaggio = decifratura(ricevuto)
     print("stringa random dopo decifratura: ", messaggio)
 
     host_port = conn.recv(1024)
     print("host port:", host_port.decode('utf-8'))
-    if messaggio == bytes(random_string, 'utf-8'):          #se sono uguali autenticazione andata a buon fine, invio 1
-
+    if messaggio == bytes(random_string, 'utf-8'):
+        # se sono uguali autenticazione andata a buon fine, invio 1
         conn.sendall(bytes('1', 'utf-8'))
         global loggato
         global nickname
@@ -101,15 +102,12 @@ def login(username, indirizzo):
         fd_user = open("./connessi/"+username+".txt", 'w')
 
         fd_user.write(indirizzo + host_port.decode('utf-8'))
-
         fd_user.close()
 
         mac_client = conn.recv(64)
         print("mac client ricevuto:", mac_client)
 
-        #print("Pre riempimento")
         buffer_login = '2' + username + '1' + random_string + '1'
-        #print("buffer login riempito")
         mac = genera_mac(secret, buffer_login)
         print("mac generato")
 
@@ -129,15 +127,13 @@ def signup(username, buffer):
     #riceve chiave pubblica
     print("Ricevo chiave pubblica dal client...")
     key_public_client_PEM = conn.recv(2048)
-    #key_public_client_PEM = key_public_client_PEM.decode('utf-8')
 
-    key_public_client = RSA.import_key(key_public_client_PEM) #Recupero la chiave dal formato PEM
-    #print("Questa è la chiave:",key_public_client) #in formato RsaKey
+    # Recupero la chiave dal formato PEM
+    key_public_client = RSA.import_key(key_public_client_PEM)
     #genera stringa casuale
     print("Genero stringa casuale di conferma...")
     stringa_casuale = get_random_string(64)
     bytes_stringa_casuale = bytes(stringa_casuale, 'utf-8')
-
 
     #Cripto la stringa generata casualmente con la chiave pubblica del client
     print("Cifratura della stringa con chiave pubblica dell'utente...")
@@ -147,13 +143,6 @@ def signup(username, buffer):
     print("Invio stringa cifrata...")
     conn.sendall(stringa_cifrata) #invio la stringa cifrata
 
-    #print("Stringa inviata")
-    #riceve stringa decifrata con key private del client
-    #stringa_decifrata = conn.recv(2048)
-    #stringa_decifrata = stringa_decifrata.decode('utf-8')
-
-    #print("Stringa decriptata dal client: ",stringa_decifrata)
-    #print("Stringa generata inizialmente: ",stringa_casuale)
     print("Ricevo MAC generato dal client...")
     mac_client = conn.recv(2048)
     print("Genero MAC...")
@@ -162,7 +151,6 @@ def signup(username, buffer):
     print("Verifica MAC...")
     if mac == mac_client.decode('utf-8'):
         conn.sendall(bytes(mac, 'utf-8'))
-        #print("Stringhe uguali")
         #memorizzo username e chiave pubblica del nuovo utente
         f = open('UtentiRegistrati.txt', 'a')
 
@@ -173,14 +161,9 @@ def signup(username, buffer):
 
         f = open('UtentiRegistrati.txt', 'r')
         riga_letta = f.read()
-
-
         chiave = riga_letta.split(' ')[1]
 
-
         chiave_bytes = bytes(chiave,'utf-8')
-
-
         f.close()
     else:
         conn.sendall(b'errore')
@@ -205,18 +188,22 @@ def comunication_request(username):
         print('stringa >'+to_send+' connect '+username)
         mac_ = genera_mac(secret, to_send+' connect '+username)
         conn.sendall(bytes(to_send + '///' + mac_, "utf-8"))
+
+#dichiarazioni variabili globali
 loggato = 0
 nickname = ""
 secret = ""
 if __name__ == '__main__':
 
-    key = RSA.generate(2048)            #generazioni chiave privata per il server
+    # generazioni chiave privata per il server
+    key = RSA.generate(2048)
     private_key = key.export_key()
-    f = open('serverPrivKey.pem', 'wb')          #essendo always on si può fare all'inizio e pace
+    f = open('serverPrivKey.pem', 'wb')
     f.write(private_key)
     f.close()
 
-    public_key = key.publickey().export_key()  #generazione chiave pubblica
+    # generazione chiave pubblica
+    public_key = key.publickey().export_key()
     f = open('serverPubKey.pem', 'wb')
     f.write(public_key)
     f.close()
@@ -262,7 +249,6 @@ if __name__ == '__main__':
                     if (len(command) > 1) and (command[0] == 'connect'):
                         print("Richiesta dati di "+command[1]+" da "+nickname+", utente verificato.")
                         comunication_request(command[1])
-                    # conn.sendall(bytes('Thank you for connecting', 'utf-8'))
 
                 except:
                     conn.close()

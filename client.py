@@ -36,8 +36,6 @@ def genera_mac(secret_, buff_mac):
 
 def login(username):
     esito = -1
-    #print("sono nella login")
-    #print(username)
     socket.sendall(bytes('2'+username, 'utf-8'))
     check = socket.recv(1)
     check = check.decode('utf-8')
@@ -47,6 +45,7 @@ def login(username):
         return esito
 
     messaggio = socket.recv(2048)
+    print("Recupero chiave privata")
     #print("Messaggio ricevuto:",messaggio)
     f = open(username + '.pem', 'r')      #recupero la mia chiave privata
     private_key = RSA.import_key(f.read())
@@ -54,14 +53,15 @@ def login(username):
     #print("Chiave privata prelevata dal file:", private_key)
 
     cipher_rsa = PKCS1_OAEP.new(private_key)
-
+    print("Decifro con RSA stringa di autenticazione ricevuta...")
     secret = cipher_rsa.decrypt(messaggio)  #decifro il messaggio (random) ricevuto dal server con la mia chiave privata
 
     #print("Messaggio decifrato", secret)
-
+    print("Recupero chiave pubblica server...")
     f = open('serverPubKey.pem', 'r')
     serverPub_key = RSA.import_key(f.read())            #recupero chiave pubblica del server
     cipher_rsa = PKCS1_OAEP.new(serverPub_key)
+    print("Cifratura con RSA della stringa di conferma...")
     message = cipher_rsa.encrypt(secret)               #cifro con chiave pubblica del server e mando
     socket.sendall(message)
     #print("Mandato message:", message)
@@ -75,13 +75,15 @@ def login(username):
     if secret_ok.decode('utf-8') == '1':
         buffer_login = '2' + username + '1' + secret.decode('utf-8') + '1'
         #print("buffer_login riempito:", buffer_login)
+        print("Genero MAC di conferma...")
         mac = genera_mac(secret, buffer_login)
         #print("mac generato: ", mac)
-
+        print("Invio MAC al server")
         socket.sendall(bytes(mac, 'utf-8'))
         #print("mac inviato")
         risposta = socket.recv(2048)
         #print("risposta ricevuta")
+        print("Verifica MAC...")
         if mac == risposta.decode('utf8'):
             global segreto
             segreto = secret
@@ -143,17 +145,10 @@ def node_callback(event, node, connected_node, data):
         global id_user
         id = connected_node.id
 
-        #print('ID connesso', id)
-    #elif (event == 'inbound_node_connected'):
-        #print('NODE ',node)
-        #print('connected ',connected_node)
+    elif (event == 'message sent'):
+        print("Messaggio cifrato inviato: ", data)
+
     elif event == 'message received ':
-        #print('NODE ', node)
-        #print('COnnected ', connected_node)
-        #node ricevente, connected_node mittente
-        #connected_node.id is the only
-        #receiver_username = id_user[connected_node.id]
-       # print('DATA ', data)
         init = ''
         try:
             init = data[0:5].decode('utf-8')
@@ -195,16 +190,13 @@ def node_callback(event, node, connected_node, data):
             else:
                 print('utente non connesso')
         else:
-            #print('bananan2 ', type(data))
             dict = eval(data[:len(data)-1].decode('utf-8'))
+            print("Messaggio ricevuto: ", dict)
 
-            #dict_dec = dict.decode('utf-8')
-
-            #dict = json.dumps(data)
             username = dict['username']
-            #print(username)
 
             #qui posso decifrare con aes
+            print("Sto decifrando il messaggio...")
             plaintext = aes_decrypt(dict['nonce'],dict['ciphertext'],dict['tag'], node.connected[username][2])
 
             this_mac = plaintext[0:64]
@@ -212,6 +204,7 @@ def node_callback(event, node, connected_node, data):
 
             # check mac
             secret = bytes(node.connected[username][2], 'utf-8')
+            print("Calcolo e controllo MAC...")
             mac_rec = genera_mac(secret, messaggio)
             #print("Mac_rec:", mac_rec)
 
@@ -228,8 +221,8 @@ def node_callback(event, node, connected_node, data):
                 return
 
             print(username + '>>' + messaggio)
-    else:
-        print('{}: {}'.format(event, data))
+    #else:
+        #print('{}: {}'.format(event, data))
 
 
 
@@ -237,6 +230,7 @@ def signup(username):
     #avvio comunicazione con server
     socket.sendall(bytes('1' + username, 'utf-8'))
 
+    print("Sto generando le mie chiavi...")
     keys = RSA.generate(2048)  # client genera la chiave privata
     private_key_PEM = keys.export_key()
     f = open(username + '.pem', 'wb')  # crea un file per salvarla
@@ -247,6 +241,7 @@ def signup(username):
     public_key_send = public_key.export_key()
 
     # spedisco al server la chiave pubblica
+    print("Invio chiave pubblica al server...")
     socket.sendall(public_key_send)
     #print("Spedita la chiave: ",public_key_send)
 
@@ -256,6 +251,7 @@ def signup(username):
     #print("Ecco la stringa ricevuta: ", stringa)
 
     # decifro con chiave privata del client
+    print("Decifro stringa di conferma ricevuta con la mia chiave privata...")
     cipher_rsa = PKCS1_OAEP.new(keys)
     stringa_decifrata = cipher_rsa.decrypt(stringa)
 
@@ -264,11 +260,13 @@ def signup(username):
     # invio la stringa decifrata al server
     buff_mac = '1' + username + public_key_send.decode('utf-8') + stringa_decifrata.decode('utf-8')
     mac = genera_mac(stringa_decifrata, buff_mac)
+    print("Genero MAC di conferma...")
 
     socket.sendall(bytes(mac,'utf-8'))  # mando il MAC
+    print("Invio MAC...")
 
     risposta = socket.recv(2048)
-
+    print("Verifico MAC...")
     if risposta.decode('utf-8') == mac:
         print("Registrazione effettuata con successo")
 
@@ -427,10 +425,12 @@ if __name__ == '__main__':
                 #print("Pare che la chiave simmetrica sia:", node.connected[receiver][2])
                 nonce = cipher_aes.nonce
                 #MAC
+                print("Sto calcolando il MAC...")
                 mac = genera_mac(bytes(node.connected[receiver][2], 'utf-8'), str_mess)
                 #print("Mac generato dal sender:",mac)
                 str_tosend = mac + str_mess
                 #str_encrypted = chiper_rsa.encrypt(bytes(str_tosend, 'utf-8'))
+                print("Sto cifrando con AES...")
                 ciphertext, tag = cipher_aes.encrypt_and_digest(bytes(str_tosend, 'utf-8'))
 
 

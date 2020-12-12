@@ -64,17 +64,19 @@ def login(username, indirizzo):
     riga_file = file_registrati.readline()
 
     if riga_file != '':
-
+        print("Genero stringa di autenticazione...")
         random_string = get_random_string(64) #genero stringa random per autenticazione del client
         secret = bytes(random_string,'utf-8')
-        #print("stringa random: ", random_string)
+        print("Recupero chiave pubblica del client...")
         PubKey = search_pubKey(username)#prendo la chiave pubblica del client dal file per cifrare la stringa
         PubKeyClient_bytes = bytes(PubKey, 'utf-8')
         print('chiave pubblica: ', PubKey)
         cipher_rsa = PKCS1_OAEP.new(RSA.import_key(PubKeyClient_bytes))
+        print("Cifratura con RSA della stringa...")
         message = cipher_rsa.encrypt(secret)         # cifro con chiave pubblica del client e mando
         #print('stringa random cifrata: ', message)
         conn.sendall(bytes('1', 'utf-8'))
+        print("Invio stringa cifrata...")
         conn.sendall(message)
 
     elif riga_file == '':
@@ -105,9 +107,9 @@ def login(username, indirizzo):
         mac_client = conn.recv(64)
         print("mac client ricevuto:", mac_client)
 
-        print("Pre riempimento")
+        #print("Pre riempimento")
         buffer_login = '2' + username + '1' + random_string + '1'
-        print("buffer login riempito")
+        #print("buffer login riempito")
         mac = genera_mac(secret, buffer_login)
         print("mac generato")
 
@@ -125,21 +127,24 @@ def login(username, indirizzo):
 def signup(username, buffer):
 
     #riceve chiave pubblica
+    print("Ricevo chiave pubblica dal client...")
     key_public_client_PEM = conn.recv(2048)
     #key_public_client_PEM = key_public_client_PEM.decode('utf-8')
 
     key_public_client = RSA.import_key(key_public_client_PEM) #Recupero la chiave dal formato PEM
     #print("Questa è la chiave:",key_public_client) #in formato RsaKey
     #genera stringa casuale
+    print("Genero stringa casuale di conferma...")
     stringa_casuale = get_random_string(64)
     bytes_stringa_casuale = bytes(stringa_casuale, 'utf-8')
 
 
     #Cripto la stringa generata casualmente con la chiave pubblica del client
+    print("Cifratura della stringa con chiave pubblica dell'utente...")
     encryptor = PKCS1_OAEP.new(key_public_client)
     stringa_cifrata = encryptor.encrypt(bytes_stringa_casuale)
 
-
+    print("Invio stringa cifrata...")
     conn.sendall(stringa_cifrata) #invio la stringa cifrata
 
     #print("Stringa inviata")
@@ -149,12 +154,12 @@ def signup(username, buffer):
 
     #print("Stringa decriptata dal client: ",stringa_decifrata)
     #print("Stringa generata inizialmente: ",stringa_casuale)
-
+    print("Ricevo MAC generato dal client...")
     mac_client = conn.recv(2048)
-
+    print("Genero MAC...")
     buffer_mac = buffer + key_public_client_PEM.decode('utf-8') + stringa_casuale
     mac = genera_mac(bytes_stringa_casuale, buffer_mac)
-
+    print("Verifica MAC...")
     if mac == mac_client.decode('utf-8'):
         conn.sendall(bytes(mac, 'utf-8'))
         #print("Stringhe uguali")
